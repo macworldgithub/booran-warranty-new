@@ -11,23 +11,23 @@ import {
   DecodedVehicle,
   FaultCategory,
   FlagReasonCode,
-  MediaType
-} from './types';
+  MediaType,
+} from "./types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 function getAuthHeader(): HeadersInit {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('booran_auth_token');
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("booran_auth_token");
     if (token) {
       return {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       };
     }
   }
   return {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 }
 
@@ -37,7 +37,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
     try {
       const errJson = await res.json();
       if (errJson.message) {
-        errorMsg = Array.isArray(errJson.message) ? errJson.message.join(', ') : errJson.message;
+        errorMsg = Array.isArray(errJson.message)
+          ? errJson.message.join(", ")
+          : errJson.message;
       }
     } catch {
       // ignore
@@ -49,26 +51,62 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export const api = {
   // Auth
-  async login(email: string, password: string): Promise<{ accessToken: string; user: UserProfile }> {
-    const res = await fetch(`${BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    return handleResponse(res);
-  },
-
   auth: {
-    login: async (creds: { email: string; password: string; role?: string } | string, password?: string): Promise<{ accessToken: string; user: UserProfile }> => {
-      const email = typeof creds === 'string' ? creds : creds.email;
-      const pass = typeof creds === 'string' ? password! : creds.password;
+    async login(payload: {
+      email: string;
+      password: string;
+      role?: string;
+    }): Promise<{ accessToken: string; user: UserProfile }> {
       const res = await fetch(`${BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      return handleResponse(res);
+      if (!res.ok) {
+        let errorMsg = "Authentication failed. Please check your credentials.";
+        try {
+          const errJson = await res.json();
+          if (errJson.message) {
+            errorMsg = Array.isArray(errJson.message)
+              ? errJson.message.join(", ")
+              : errJson.message;
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(errorMsg);
+      }
+      return res.json();
     },
+    async signup(payload: {
+      name: string;
+      email: string;
+      password: string;
+      role: string;
+      siteId?: string;
+    }): Promise<{ accessToken: string; user: UserProfile }> {
+      const res = await fetch(`${BASE_URL}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let errorMsg = "Registration failed. Please check your details.";
+        try {
+          const errJson = await res.json();
+          if (errJson.message) {
+            errorMsg = Array.isArray(errJson.message)
+              ? errJson.message.join(", ")
+              : errJson.message;
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(errorMsg);
+      }
+      return res.json();
+    },
+
     getMe: async (): Promise<UserProfile> => {
       const res = await fetch(`${BASE_URL}/auth/me`, {
         headers: getAuthHeader(),
@@ -112,9 +150,14 @@ export const api = {
     return handleResponse(res);
   },
 
-  async createSite(data: { name: string; location: string; roPrefix: string; authorizedBrandIds: string[] }): Promise<Site> {
+  async createSite(data: {
+    name: string;
+    location: string;
+    roPrefix: string;
+    authorizedBrandIds: string[];
+  }): Promise<Site> {
     const res = await fetch(`${BASE_URL}/sites`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
     });
@@ -174,7 +217,7 @@ export const api = {
     optionalCount: number;
   }> {
     const res = await fetch(`${BASE_URL}/brand-packs/evaluate-rules`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
     });
@@ -183,7 +226,7 @@ export const api = {
 
   async cloneBrandPackVersion(id: string): Promise<BrandPack> {
     const res = await fetch(`${BASE_URL}/brand-packs/${id}/clone-version`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
     });
     return handleResponse(res);
@@ -191,7 +234,7 @@ export const api = {
 
   async publishBrandPackVersion(id: string): Promise<BrandPack> {
     const res = await fetch(`${BASE_URL}/brand-packs/${id}/publish`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
     });
     return handleResponse(res);
@@ -208,16 +251,17 @@ export const api = {
     agedHours?: number;
   }): Promise<WarrantyCase[]> {
     const query = new URLSearchParams();
-    if (params?.siteId) query.append('siteId', params.siteId);
-    if (params?.brandId) query.append('brandId', params.brandId);
-    if (params?.status) query.append('status', params.status);
-    if (params?.ro) query.append('ro', params.ro);
-    if (params?.vin) query.append('vin', params.vin);
-    if (params?.flaggedOnly) query.append('flaggedOnly', 'true');
-    if (params?.agedHours) query.append('agedHours', params.agedHours.toString());
+    if (params?.siteId) query.append("siteId", params.siteId);
+    if (params?.brandId) query.append("brandId", params.brandId);
+    if (params?.status) query.append("status", params.status);
+    if (params?.ro) query.append("ro", params.ro);
+    if (params?.vin) query.append("vin", params.vin);
+    if (params?.flaggedOnly) query.append("flaggedOnly", "true");
+    if (params?.agedHours)
+      query.append("agedHours", params.agedHours.toString());
 
     const qs = query.toString();
-    const url = `${BASE_URL}/warranty-cases${qs ? '?' + qs : ''}`;
+    const url = `${BASE_URL}/warranty-cases${qs ? "?" + qs : ""}`;
     const res = await fetch(url, {
       headers: getAuthHeader(),
     });
@@ -241,7 +285,7 @@ export const api = {
     make: string;
     model: string;
     year: number;
-    powertrain: 'EV' | 'Hybrid' | 'PHEV' | 'ICE';
+    powertrain: "EV" | "Hybrid" | "PHEV" | "ICE";
     technicianId: string;
     technicianName: string;
     concernTitle: string;
@@ -249,10 +293,10 @@ export const api = {
     partReplaced: boolean;
     noiseFault: boolean;
     diagnosticsAvailable: boolean;
-    repairStage: 'Pre-repair only' | 'During repair' | 'Repair complete';
+    repairStage: "Pre-repair only" | "During repair" | "Repair complete";
   }): Promise<WarrantyCase> {
     const res = await fetch(`${BASE_URL}/warranty-cases`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
     });
@@ -269,10 +313,10 @@ export const api = {
       ocrExtractedText?: string;
       ocrConfidence?: number;
       durationSeconds?: number;
-    }
+    },
   ): Promise<WarrantyCase> {
     const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/evidence`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
     });
@@ -287,21 +331,27 @@ export const api = {
       recordedBy: string;
       originalAudioUrl?: string;
       pinnedToEvidenceKey?: string;
-    }
+    },
   ): Promise<WarrantyCase> {
-    const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/voice-notes`, {
-      method: 'POST',
-      headers: getAuthHeader(),
-      body: JSON.stringify(data),
-    });
+    const res = await fetch(
+      `${BASE_URL}/warranty-cases/${caseId}/voice-notes`,
+      {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: JSON.stringify(data),
+      },
+    );
     return handleResponse(res);
   },
 
   async submitFromWorkshop(caseId: string): Promise<WarrantyCase> {
-    const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/submit-from-workshop`, {
-      method: 'POST',
-      headers: getAuthHeader(),
-    });
+    const res = await fetch(
+      `${BASE_URL}/warranty-cases/${caseId}/submit-from-workshop`,
+      {
+        method: "POST",
+        headers: getAuthHeader(),
+      },
+    );
     return handleResponse(res);
   },
 
@@ -312,10 +362,10 @@ export const api = {
       reasonCode: FlagReasonCode;
       instruction: string;
       flaggedBy: string;
-    }
+    },
   ): Promise<WarrantyCase> {
     const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/flag`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
     });
@@ -327,20 +377,23 @@ export const api = {
     data: {
       claimNumber: string;
       clerkNote?: string;
-    }
+    },
   ): Promise<WarrantyCase> {
-    const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/mark-submitted`, {
-      method: 'POST',
-      headers: getAuthHeader(),
-      body: JSON.stringify(data),
-    });
+    const res = await fetch(
+      `${BASE_URL}/warranty-cases/${caseId}/mark-submitted`,
+      {
+        method: "POST",
+        headers: getAuthHeader(),
+        body: JSON.stringify(data),
+      },
+    );
     return handleResponse(res);
   },
 
   // Vehicle / VIN Decoder
   async decodeVin(vin: string): Promise<DecodedVehicle> {
     const res = await fetch(`${BASE_URL}/vehicle/decode-vin`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify({ vin }),
     });
@@ -360,7 +413,7 @@ export const api = {
     engine: string;
   }> {
     const res = await fetch(`${BASE_URL}/voice-to-tech/transcribe`, {
-      method: 'POST',
+      method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
     });

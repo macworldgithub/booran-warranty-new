@@ -57,65 +57,38 @@ export default function LoginPage() {
 
     try {
       if (authMode === 'signin') {
-        let response = null;
-        try {
-          response = await api.auth.login({
-            email: email.trim(),
-            password: password.trim(),
-            role: selectedRole,
-          });
-        } catch (apiErr: any) {
-          console.warn('Backend login endpoint response/error:', apiErr);
-          // If the backend returns invalid credentials or isn't connected, we check if demo credentials were used
-          const isKnownDemo = (email.trim() === 'admin@booran.com.au' || email.trim() === 'technician@booran.com.au' || !email.trim()) &&
-                              (password.trim() === 'Booran2026!' || !password.trim());
-          if (!isKnownDemo && !apiErr.message?.includes('Failed to fetch')) {
-            throw apiErr;
-          }
+        // Validate inputs before hitting the API
+        if (!email.trim()) throw new Error('Please enter your work email address.');
+        if (!password.trim()) throw new Error('Please enter your password.');
+
+        // Call the backend — no fallback. Errors surface directly to the user.
+        const response = await api.auth.login({
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+          role: selectedRole,
+        });
+
+        if (!response || !response.user) {
+          throw new Error('Authentication failed. Please check your credentials and try again.');
         }
 
-        if (response && response.user) {
-          saveAuthSession(response.user, response.accessToken);
-          router.replace(response.user.role === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
-        } else {
-          // Fallback mock session for selected role
-          const fallbackUser = {
-            id: selectedRole === 'ADMIN' ? 'usr_admin_1' : 'usr_tech_1',
-            name: selectedRole === 'ADMIN' ? 'Marcus Vance' : 'Jake Smith',
-            email: email.trim() || (selectedRole === 'ADMIN' ? 'admin@booran.com.au' : 'technician@booran.com.au'),
-            role: selectedRole,
-            defaultSiteId: 'site_cranbourne_byd',
-            authorizedSiteIds: ['site_cranbourne_byd', 'site_dandenong_multi', 'site_cheltenham_mg', 'site_berwick_toyota_ford'],
-          };
-          saveAuthSession(fallbackUser);
-          router.replace(selectedRole === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
-        }
+        saveAuthSession(response.user, response.accessToken);
+        router.replace(response.user.role === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
       } else {
         // Sign Up Mode
         if (!name.trim()) throw new Error('Please enter your full name');
         if (!email.trim() || !email.includes('@')) throw new Error('Please enter a valid work email address');
         if (!password.trim() || password.length < 6) throw new Error('Password must be at least 6 characters');
 
-        const signupPayload = {
+        const response = await api.auth.signup({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password: password.trim(),
           role: selectedRole,
           siteId: selectedSite,
-        };
-
-        const response = await fetch('/api/v1/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(signupPayload),
         });
 
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to create account. Please check your details.');
-        }
-
-        saveAuthSession(data.user, data.accessToken);
+        saveAuthSession(response.user, response.accessToken);
         setSuccessMsg('Account registered successfully! Redirecting...');
         setTimeout(() => {
           router.replace(selectedRole === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
