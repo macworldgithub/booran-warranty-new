@@ -61,7 +61,7 @@ export default function LoginPage() {
         if (!email.trim()) throw new Error('Please enter your work email address.');
         if (!password.trim()) throw new Error('Please enter your password.');
 
-        // Call the backend — no fallback. Errors surface directly to the user.
+        // Call the backend - no fallback. Errors surface directly to the user.
         const response = await api.auth.login({
           email: email.trim().toLowerCase(),
           password: password.trim(),
