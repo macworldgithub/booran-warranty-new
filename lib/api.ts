@@ -333,6 +333,7 @@ export const api = {
       ocrExtractedText?: string;
       ocrConfidence?: number;
       durationSeconds?: number;
+      technicianNote?: string;
     },
   ): Promise<WarrantyCase> {
     const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/evidence`, {

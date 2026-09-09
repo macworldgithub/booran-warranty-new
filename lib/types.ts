@@ -130,6 +130,7 @@ export interface FlagItem {
   resolved: boolean;
   resolvedAt?: string;
   technicianReply?: string;
+  technicianNote?: string;
 }
 
 export interface ChecklistItem {
