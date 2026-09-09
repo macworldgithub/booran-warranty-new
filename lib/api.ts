@@ -17,18 +17,33 @@ import {
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 function getAuthHeader(): HeadersInit {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("booran_auth_token");
-    if (token) {
-      return {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      };
-    }
-  }
-  return {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("booran_auth_token") || localStorage.getItem("booran_jwt");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const userStr = localStorage.getItem("booran_user") || localStorage.getItem("booran_user_profile");
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.role) {
+          headers["X-User-Role"] = user.role;
+        }
+        if (user.id) {
+          headers["X-User-Id"] = user.id;
+        }
+        if (user.name) {
+          headers["X-User-Name"] = user.name;
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+  return headers;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -245,6 +260,8 @@ export const api = {
     siteId?: string;
     brandId?: string;
     status?: string;
+    technicianId?: string;
+    technicianName?: string;
     ro?: string;
     vin?: string;
     flaggedOnly?: boolean;
@@ -254,6 +271,8 @@ export const api = {
     if (params?.siteId) query.append("siteId", params.siteId);
     if (params?.brandId) query.append("brandId", params.brandId);
     if (params?.status) query.append("status", params.status);
+    if (params?.technicianId) query.append("technicianId", params.technicianId);
+    if (params?.technicianName) query.append("technicianName", params.technicianName);
     if (params?.ro) query.append("ro", params.ro);
     if (params?.vin) query.append("vin", params.vin);
     if (params?.flaggedOnly) query.append("flaggedOnly", "true");
@@ -294,6 +313,7 @@ export const api = {
     noiseFault: boolean;
     diagnosticsAvailable: boolean;
     repairStage: "Pre-repair only" | "During repair" | "Repair complete";
+    creatorRole?: string;
   }): Promise<WarrantyCase> {
     const res = await fetch(`${BASE_URL}/warranty-cases`, {
       method: "POST",

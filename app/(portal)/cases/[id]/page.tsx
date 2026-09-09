@@ -19,6 +19,7 @@ export default function CaseDetailPage() {
   const [caseData, setCaseData] = useState<WarrantyCase | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>('');
 
   // Modals
   const [flagModalOpen, setFlagModalOpen] = useState(false);
@@ -34,6 +35,20 @@ export default function CaseDetailPage() {
   // Submit Form
   const [claimNumber, setClaimNumber] = useState('');
   const [clerkNote, setClerkNote] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          setUserRole(user.role || '');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (caseId) loadCase();
@@ -102,6 +117,16 @@ export default function CaseDetailPage() {
     }
   }
 
+  async function handleSubmitFromWorkshop() {
+    try {
+      const updated = await api.submitFromWorkshop(caseId);
+      setCaseData(updated);
+      showToast('Case successfully submitted to Warranty Clerk Review Queue!', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Submission failed', 'error');
+    }
+  }
+
   if (loading || !caseData) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
@@ -131,36 +156,55 @@ export default function CaseDetailPage() {
             >
               ← Back to Queue
             </Link>
-            <button
-              onClick={handleGeneratePack}
-              className="btn-ghost text-xs py-2 px-3 border-[#00f0ff]/30 text-[#00f0ff] hover:bg-[#00f0ff]/10 flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              <span>Export OEM ZIP Pack</span>
-            </button>
-            {caseData.status !== 'Submitted' && (
+
+            {/* Clerk & Admin Review Controls - NOT shown on Technician Role */}
+            {userRole !== 'TECHNICIAN' && (
               <>
                 <button
-                  onClick={() => setFlagModalOpen(true)}
-                  className="btn-danger text-xs py-2 px-3 flex items-center gap-1.5"
+                  onClick={handleGeneratePack}
+                  className="btn-ghost text-xs py-2 px-3 border-[#00f0ff]/30 text-[#00f0ff] hover:bg-[#00f0ff]/10 flex items-center gap-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  <span>Flag for Retake</span>
+                  <span>Export OEM ZIP Pack</span>
                 </button>
-                <button
-                  onClick={() => setSubmitModalOpen(true)}
-                  className="btn-success text-xs py-2 px-4 flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Approve & Submit</span>
-                </button>
+                {caseData.status !== 'Submitted' && (
+                  <>
+                    <button
+                      onClick={() => setFlagModalOpen(true)}
+                      className="btn-danger text-xs py-2 px-3 flex items-center gap-1.5"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>Flag for Retake</span>
+                    </button>
+                    <button
+                      onClick={() => setSubmitModalOpen(true)}
+                      className="btn-success text-xs py-2 px-4 flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Approve & Submit</span>
+                    </button>
+                  </>
+                )}
               </>
+            )}
+
+            {/* Technician Workshop Control - Submit to clerk when ready */}
+            {userRole === 'TECHNICIAN' && (caseData.status === 'Draft' || caseData.status === 'Flagged') && (
+              <button
+                onClick={handleSubmitFromWorkshop}
+                className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.3)]"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Submit to Clerk Review</span>
+              </button>
             )}
           </div>
         }

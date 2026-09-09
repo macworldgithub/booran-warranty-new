@@ -14,10 +14,29 @@ export default function CasesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [brandFilter, setBrandFilter] = useState<string>('ALL');
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          setUserRole(user.role || '');
+          setUserId(user.id || '');
+          setUserName(user.name || '');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     loadCases();
-  }, [statusFilter, brandFilter, flaggedOnly]);
+  }, [statusFilter, brandFilter, flaggedOnly, userRole, userName]);
 
   async function loadCases() {
     setLoading(true);
@@ -26,6 +45,11 @@ export default function CasesPage() {
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (brandFilter !== 'ALL') params.brandId = brandFilter;
       if (flaggedOnly) params.flaggedOnly = true;
+
+      if (userRole === 'TECHNICIAN') {
+        if (userId) params.technicianId = userId;
+        if (userName) params.technicianName = userName;
+      }
 
       const data = await api.getWarrantyCases(params);
       setCases(data);
@@ -37,6 +61,18 @@ export default function CasesPage() {
   }
 
   const filteredCases = cases.filter((c) => {
+    // If technician, enforce that they only see their own claims
+    if (userRole === 'TECHNICIAN' && userName) {
+      const isMyCase =
+        (c.technicianName && c.technicianName.toLowerCase() === userName.toLowerCase()) ||
+        (c.technicianId && (
+          c.technicianId === userId ||
+          c.technicianId === 'tech_' + userName.toLowerCase().replace(/[^a-z0-9]/g, '_') ||
+          (userName.toLowerCase().includes('jake') && c.technicianId.includes('jake'))
+        ));
+      if (!isMyCase) return false;
+    }
+
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     const vin = c.vin || c.vehicle?.vin || '';
@@ -56,18 +92,24 @@ export default function CasesPage() {
   return (
     <div className="flex-1 flex flex-col pb-12">
       <Header
-        title="Warranty Cases CRM & Review Queue"
-        subtitle="Manage workshop tickets, verify OEM checklist gates, flag discrepancies, and submit claims"
+        title={userRole === 'TECHNICIAN' ? 'My Workshop Cases & Claims' : 'Warranty Cases CRM & Review Queue'}
+        subtitle={
+          userRole === 'TECHNICIAN'
+            ? 'Track your active Repair Orders, capture mandatory Attachment A evidence, and resolve flagged items'
+            : 'Manage workshop tickets, verify OEM checklist gates, flag discrepancies, and submit claims'
+        }
         action={
-          <Link
-            href="/cases/new"
-            className="btn-primary text-xs py-2 px-4 shadow-[0_0_20px_rgba(26,86,219,0.4)]"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New Warranty Ticket</span>
-          </Link>
+          userRole === 'TECHNICIAN' ? (
+            <Link
+              href="/cases/new"
+              className="btn-primary text-xs py-2 px-4 shadow-[0_0_20px_rgba(26,86,219,0.4)]"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New Warranty Ticket</span>
+            </Link>
+          ) : undefined
         }
       />
 

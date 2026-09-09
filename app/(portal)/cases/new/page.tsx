@@ -15,6 +15,7 @@ export default function NewCaseWizard() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(false);
   const [vinDecoding, setVinDecoding] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   // Form State
   const [siteId, setSiteId] = useState('');
@@ -39,10 +40,11 @@ export default function NewCaseWizard() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('booran_user');
+      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
       if (userStr) {
         try {
           const user = JSON.parse(userStr);
+          setCurrentUserRole(user.role || '');
           if (user.name) setTechnicianName(user.name);
           if (user.defaultSiteId) setSiteId(user.defaultSiteId);
         } catch {
@@ -120,6 +122,12 @@ export default function NewCaseWizard() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (currentUserRole !== 'TECHNICIAN') {
+      showToast('Permission denied: Only technicians are authorized to raise warranty tickets.', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -141,6 +149,7 @@ export default function NewCaseWizard() {
         noiseFault,
         diagnosticsAvailable,
         repairStage,
+        creatorRole: currentUserRole || undefined,
       });
 
       showToast(`Warranty Case ${created.roNumber} initialized with ${evaluatedRules?.mandatoryCount || 8} mandatory gates!`, 'success');
@@ -150,6 +159,44 @@ export default function NewCaseWizard() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (currentUserRole && currentUserRole !== 'TECHNICIAN') {
+    return (
+      <div className="flex-1 flex flex-col pb-12">
+        <Header
+          title="New Warranty RO Evidence Capture"
+          subtitle="Start a guided technician evidence ticket with auto-evaluated OEM rules & Attachment A gates"
+        />
+        <div className="p-8 max-w-2xl mx-auto w-full mt-8">
+          <div className="glass-card-static p-8 border border-amber-500/30 rounded-2xl bg-[#0d1b3e]/80 text-center space-y-6 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white tracking-wide">Technician Role Required</h3>
+              <p className="text-sm text-gray-300 mt-2 leading-relaxed">
+                Warranty tickets can only be raised and captured by workshop technicians. As an Administrator, your account has review, audit, flagging, and submission permissions in the Warranty Review Queue.
+              </p>
+            </div>
+            <div className="pt-2 flex justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => router.push('/cases')}
+                className="btn-primary py-2.5 px-6 text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(26,86,219,0.4)]"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>Go to Warranty Cases Queue</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
