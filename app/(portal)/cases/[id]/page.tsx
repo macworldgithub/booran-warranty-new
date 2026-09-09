@@ -111,9 +111,12 @@ export default function CaseDetailPage() {
     );
   }
 
-  const gatePercent = Math.round(
-    (caseData.checklistSummary.completedMandatory / (caseData.checklistSummary.totalMandatory || 1)) * 100
-  );
+  const completedMandatory = caseData.checklistSummary?.completedMandatory ?? 0;
+  const totalMandatory = caseData.checklistSummary?.totalMandatory ?? 1;
+  const gatePercent = Math.round((completedMandatory / (totalMandatory || 1)) * 100);
+
+  const evidenceList = caseData.evidenceItems || caseData.evidence || [];
+  const flagsList = caseData.flagHistory || caseData.flags || [];
 
   return (
     <div className="flex-1 flex flex-col pb-12">
@@ -179,7 +182,7 @@ export default function CaseDetailPage() {
               </p>
               <p className="text-[#cbd5e1] flex justify-between">
                 <span className="text-[#64748b]">Odometer:</span>
-                <span>{caseData.odometer.toLocaleString()} km</span>
+                <span>{(caseData.odometer ?? caseData.vehicle?.odometer ?? 0).toLocaleString()} km</span>
               </p>
               <p className="text-[#cbd5e1] flex justify-between">
                 <span className="text-[#64748b]">Powertrain:</span>
@@ -223,7 +226,7 @@ export default function CaseDetailPage() {
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-black text-white">
-                  {caseData.checklistSummary.completedMandatory} / {caseData.checklistSummary.totalMandatory}
+                  {completedMandatory} / {totalMandatory}
                 </span>
                 <span className="text-xs font-bold text-[#00f0ff]">({gatePercent}%)</span>
               </div>
@@ -245,7 +248,7 @@ export default function CaseDetailPage() {
         </div>
 
         {/* Flag History Alert (if any) */}
-        {caseData.flagHistory && caseData.flagHistory.length > 0 && (
+        {flagsList.length > 0 && (
           <div className="p-4 rounded-2xl bg-[#ef4444]/10 border border-[#ef4444]/30 space-y-2 animate-slideInLeft">
             <div className="flex items-center gap-2 text-xs font-bold text-[#ef4444] uppercase tracking-wider">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -253,7 +256,7 @@ export default function CaseDetailPage() {
               </svg>
               <span>Case Flag Discrepancy Log</span>
             </div>
-            {caseData.flagHistory.map((flag, idx) => (
+            {flagsList.map((flag, idx) => (
               <div key={idx} className="p-3 rounded-xl bg-[#081225]/80 border border-[#ef4444]/20 text-xs">
                 <div className="flex items-center justify-between text-[#ef4444] font-semibold mb-1">
                   <span>Reason: {flag.reasonCode} (Rule: {flag.evidenceRuleKey})</span>
@@ -274,12 +277,12 @@ export default function CaseDetailPage() {
               <p className="text-xs text-[#cbd5e1]/70">BYD-WB-2602-02 Attachment A standardized shots & videos</p>
             </div>
             <span className="text-xs text-[#00f0ff] font-semibold">
-              {caseData.evidenceItems.length} Captured Items
+              {evidenceList.length} Captured Items
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {caseData.evidenceItems.map((item) => (
+            {evidenceList.map((item) => (
               <div
                 key={item.id}
                 className="rounded-xl bg-[#081225]/90 border border-[#1a56db]/20 overflow-hidden hover:border-[#00f0ff]/50 transition-all group flex flex-col justify-between"
@@ -516,13 +519,13 @@ export default function CaseDetailPage() {
             <div>
               <p className="font-semibold text-white mb-2">OEM-Named File Manifest (BYD Convention):</p>
               <div className="space-y-1 max-h-48 overflow-y-auto">
-                {packData.includedFiles.map((file, idx) => (
+                {(packData.includedFiles || packData.fileManifest || []).map((file: any, idx: number) => (
                   <div
                     key={idx}
                     className="p-2 rounded bg-[#081225] border border-[#1a56db]/10 flex items-center justify-between font-mono text-[11px]"
                   >
-                    <span className="text-[#00f0ff]">{file.oemFileName}</span>
-                    <span className="text-[#64748b]">{(file.sizeBytes / 1024).toFixed(0)} KB</span>
+                    <span className="text-[#00f0ff]">{file.oemFileName || file.standardizedName || file.filename || `Evidence_${idx + 1}`}</span>
+                    <span className="text-[#64748b]">{((file.sizeBytes || 0) / 1024).toFixed(0)} KB</span>
                   </div>
                 ))}
               </div>

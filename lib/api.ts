@@ -58,6 +58,31 @@ export const api = {
     return handleResponse(res);
   },
 
+  auth: {
+    login: async (creds: { email: string; password: string; role?: string } | string, password?: string): Promise<{ accessToken: string; user: UserProfile }> => {
+      const email = typeof creds === 'string' ? creds : creds.email;
+      const pass = typeof creds === 'string' ? password! : creds.password;
+      const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+      });
+      return handleResponse(res);
+    },
+    getMe: async (): Promise<UserProfile> => {
+      const res = await fetch(`${BASE_URL}/auth/me`, {
+        headers: getAuthHeader(),
+      });
+      return handleResponse(res);
+    },
+    getUsers: async (): Promise<UserProfile[]> => {
+      const res = await fetch(`${BASE_URL}/auth/users`, {
+        headers: getAuthHeader(),
+      });
+      return handleResponse(res);
+    },
+  },
+
   async getMe(): Promise<UserProfile> {
     const res = await fetch(`${BASE_URL}/auth/me`, {
       headers: getAuthHeader(),

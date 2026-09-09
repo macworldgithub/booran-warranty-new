@@ -39,12 +39,17 @@ export default function CasesPage() {
   const filteredCases = cases.filter((c) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    const vin = c.vin || c.vehicle?.vin || '';
+    const model = c.model || c.vehicle?.model || '';
+    const concernTitle = c.concernTitle || c.concern?.title || '';
+    const technicianName = c.technicianName || '';
+    const roNumber = c.roNumber || '';
     return (
-      c.roNumber.toLowerCase().includes(q) ||
-      c.vin.toLowerCase().includes(q) ||
-      c.model.toLowerCase().includes(q) ||
-      c.technicianName.toLowerCase().includes(q) ||
-      c.concernTitle.toLowerCase().includes(q)
+      roNumber.toLowerCase().includes(q) ||
+      vin.toLowerCase().includes(q) ||
+      model.toLowerCase().includes(q) ||
+      technicianName.toLowerCase().includes(q) ||
+      concernTitle.toLowerCase().includes(q)
     );
   });
 
@@ -168,9 +173,16 @@ export default function CasesPage() {
                 </thead>
                 <tbody className="divide-y divide-[#1a56db]/10">
                   {filteredCases.map((c) => {
-                    const gatePercent = Math.round(
-                      (c.checklistSummary.completedMandatory / (c.checklistSummary.totalMandatory || 1)) * 100
-                    );
+                    const completed = c.checklistSummary?.completedMandatory ?? 0;
+                    const total = c.checklistSummary?.totalMandatory ?? 1;
+                    const gatePercent = Math.round((completed / (total || 1)) * 100);
+                    const year = c.year ?? c.vehicle?.year ?? '';
+                    const make = c.make ?? c.vehicle?.make ?? '';
+                    const model = c.model ?? c.vehicle?.model ?? '';
+                    const vin = c.vin ?? c.vehicle?.vin ?? '';
+                    const concern = c.concernTitle ?? c.concern?.title ?? '';
+                    const faultCat = c.faultCategory ?? c.concern?.faultCategory ?? '';
+
                     return (
                       <tr
                         key={c.id}
@@ -191,20 +203,20 @@ export default function CasesPage() {
                         <td className="py-3.5 px-4">
                           <Link href={`/cases/${c.id}`} className="block">
                             <p className="font-semibold text-white truncate max-w-[180px]">
-                              {c.year} {c.make} {c.model}
+                              {year} {make} {model}
                             </p>
                             <p className="font-mono text-[10px] text-[#64748b] tracking-wider truncate max-w-[180px]">
-                              {c.vin}
+                              {vin}
                             </p>
                           </Link>
                         </td>
                         <td className="py-3.5 px-4">
                           <Link href={`/cases/${c.id}`} className="block">
-                            <p className="font-medium text-[#cbd5e1] truncate max-w-[220px]" title={c.concernTitle}>
-                              {c.concernTitle}
+                            <p className="font-medium text-[#cbd5e1] truncate max-w-[220px]" title={concern}>
+                              {concern}
                             </p>
                             <span className="text-[10px] text-[#00f0ff] inline-block mt-0.5 font-medium">
-                              {c.faultCategory}
+                              {faultCat}
                             </span>
                           </Link>
                         </td>
@@ -222,7 +234,7 @@ export default function CasesPage() {
                           <div className="inline-flex flex-col items-center gap-1 w-24">
                             <div className="flex items-center justify-between w-full text-[10px] font-mono">
                               <span className="text-[#00f0ff] font-bold">
-                                {c.checklistSummary.completedMandatory}/{c.checklistSummary.totalMandatory}
+                                {completed}/{total}
                               </span>
                               <span className="text-[#64748b]">{gatePercent}%</span>
                             </div>

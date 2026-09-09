@@ -33,6 +33,8 @@ export type FlagReasonCode =
   | 'INCORRECT_MEDIA_TYPE'
   | 'OTHER';
 
+export type MediaType = 'image' | 'video' | 'document' | 'audio';
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -62,11 +64,39 @@ export interface Brand {
   isActive: boolean;
 }
 
+export interface BrandPackRule {
+  id: string;
+  ruleKey: string;
+  name: string;
+  description: string;
+  mediaType: MediaType;
+  tier: number;
+  isMandatory: boolean;
+  namingConvention: string;
+  guidanceText?: string;
+  faultCategorySpecific?: string[];
+}
+
+export interface BrandPack {
+  id: string;
+  brandId: string;
+  brandName?: string;
+  name: string;
+  description?: string;
+  version: number;
+  status?: 'Active' | 'Draft' | 'Deprecated' | string;
+  isPublished: boolean;
+  publishedAt?: string;
+  rules: BrandPackRule[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EvidenceItem {
   id: string;
   ruleKey: string;
   name: string;
-  mediaType: 'image' | 'video' | 'document' | 'audio';
+  mediaType: MediaType;
   originalFileName: string;
   oemFileName: string;
   storageUrl: string;
@@ -107,7 +137,7 @@ export interface ChecklistItem {
   name: string;
   category: 'Tier 1' | 'Tier 2' | 'Conditional';
   instruction: string;
-  mediaType: 'image' | 'video' | 'document' | 'audio';
+  mediaType: MediaType;
   isMandatory: boolean;
   namingTemplate: string;
   isComplete: boolean;
@@ -140,7 +170,9 @@ export interface WarrantyCase {
   createdAt: string;
   updatedAt: string;
   submittedAt?: string;
-  vehicle: {
+
+  // Nested vehicle structure
+  vehicle?: {
     vin: string;
     odometer: number;
     make: string;
@@ -148,7 +180,16 @@ export interface WarrantyCase {
     year: number;
     powertrain: PowertrainType;
   };
-  concern: {
+  // Flat vehicle properties
+  vin?: string;
+  odometer?: number;
+  make?: string;
+  model?: string;
+  year?: number;
+  powertrain?: PowertrainType;
+
+  // Nested concern structure
+  concern?: {
     title: string;
     faultCategory: FaultCategory;
     partReplaced: boolean;
@@ -156,12 +197,23 @@ export interface WarrantyCase {
     diagnosticsAvailable: boolean;
     repairStage: RepairStage;
   };
-  evidence: EvidenceItem[];
-  voiceNotes: VoiceNote[];
-  flags: FlagItem[];
-  clerkNotes: string[];
-  checklist: ChecklistItem[];
-  checklistSummary: ChecklistSummary;
+  // Flat concern properties
+  concernTitle?: string;
+  faultCategory?: FaultCategory;
+  partReplaced?: boolean;
+  noiseFault?: boolean;
+  diagnosticsAvailable?: boolean;
+  repairStage?: RepairStage;
+
+  // Evidence & lists
+  evidence?: EvidenceItem[];
+  evidenceItems?: EvidenceItem[];
+  voiceNotes?: VoiceNote[];
+  flags?: FlagItem[];
+  flagHistory?: FlagItem[];
+  clerkNotes?: string[];
+  checklist?: ChecklistItem[];
+  checklistSummary?: ChecklistSummary;
 }
 
 export interface DashboardKPIs {
@@ -171,4 +223,66 @@ export interface DashboardKPIs {
   avgWorkshopToSubmittedHours: number;
   activeRooftopsCount: number;
   activeBrandsCount: number;
+}
+
+export interface FlagReasonStat {
+  reasonCode: FlagReasonCode;
+  label: string;
+  count: number;
+  percent: number;
+  percentage?: number;
+}
+
+export interface SitePerformance {
+  siteId: string;
+  siteName: string;
+  roPrefix: string;
+  totalCases: number;
+  firstTimePassRate: number;
+  avgHoursToSubmit: number;
+  flaggedCount: number;
+}
+
+export interface SubmissionPackResponse {
+  caseId: string;
+  roNumber: string;
+  claimNumber?: string;
+  brandName: string;
+  siteName: string;
+  generatedAt: string;
+  summaryPdfUrl?: string;
+  pdfSummaryDownloadUrl?: string;
+  zipPackageUrl?: string;
+  zipDownloadUrl?: string;
+  zipFileName?: string;
+  fileManifest?: {
+    ruleKey: string;
+    mediaType: string;
+    originalName: string;
+    standardizedName: string;
+    storageUrl: string;
+    ocrVerified: boolean;
+    sizeBytes: number;
+  }[];
+  includedFiles?: {
+    ruleKey?: string;
+    mediaType?: string;
+    originalName?: string;
+    standardizedName?: string;
+    storageUrl?: string;
+    ocrVerified?: boolean;
+    sizeBytes?: number;
+    filename?: string;
+    category?: string;
+    evidenceRuleName?: string;
+  }[];
+}
+
+export interface DecodedVehicle {
+  vin: string;
+  make: string;
+  model: string;
+  year: number;
+  powertrain: PowertrainType;
+  provider: string;
 }

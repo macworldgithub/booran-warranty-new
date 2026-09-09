@@ -206,23 +206,26 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-4">
-                {flagReasons.map((reason) => (
-                  <div key={reason.reasonCode} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[#cbd5e1] truncate max-w-[200px]" title={reason.label}>
-                        {reason.label}
-                      </span>
-                      <span className="font-bold text-[#ef4444] font-mono">{reason.percentage}%</span>
+                {flagReasons.map((reason) => {
+                  const pct = reason.percent ?? reason.percentage ?? 0;
+                  return (
+                    <div key={reason.reasonCode} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-[#cbd5e1] truncate max-w-[200px]" title={reason.label}>
+                          {reason.label}
+                        </span>
+                        <span className="font-bold text-[#ef4444] font-mono">{pct}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-[#081225] rounded-full overflow-hidden border border-[#1a56db]/20">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#ef4444] to-[#f59e0b] rounded-full"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-[#64748b] text-right">{reason.count} occurrences</p>
                     </div>
-                    <div className="h-2 w-full bg-[#081225] rounded-full overflow-hidden border border-[#1a56db]/20">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#ef4444] to-[#f59e0b] rounded-full"
-                        style={{ width: `${reason.percentage}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-[#64748b] text-right">{reason.count} occurrences</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
