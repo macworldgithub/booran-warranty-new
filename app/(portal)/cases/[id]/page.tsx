@@ -87,6 +87,9 @@ export default function CaseDetailPage() {
   const [uploadTechnicianNote, setUploadTechnicianNote] = useState('');
   const [uploading, setUploading] = useState(false);
   const [fixConfirmed, setFixConfirmed] = useState(false);
+  // Selected File for real upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -263,37 +266,28 @@ export default function CaseDetailPage() {
     setUploadOcrText('');
     setUploadTechnicianNote('');
     setFixConfirmed(false);
+    setSelectedFile(null);
+    setPreviewUrl('');
     setRetakeModalOpen(true);
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setUploadStorageUrl(result);
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    // Generate local preview URL for the UI (does not go to server)
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    // Keep uploadStorageUrl non-empty so submit button knows a file is ready
+    setUploadStorageUrl(objectUrl);
   }
 
   async function handleSubmitRetake() {
-    if (!uploadStorageUrl) {
-      showToast('Please upload a replacement photo or select a workshop preset shot', 'error');
+    if (!selectedFile) {
+      showToast('Please select a file to upload', 'error');
       return;
     }
 
-    // Check: reject reason not fixed if technician submits the exact same rejected photo
-    if (uploadReasonCode && uploadPreviousPhotoUrl && uploadStorageUrl === uploadPreviousPhotoUrl) {
-      showToast(
-        'Cannot submit: You cannot re-submit the same rejected photo. A new replacement photo fixing the rejection reason is required.',
-        'error'
-      );
-      return;
-    }
-
-    // Check: technician confirmation of reject fix
     if (uploadReasonCode && !fixConfirmed) {
       showToast('Please check the confirmation box verifying that this new photo fixes the rejection reason.', 'error');
       return;
@@ -301,25 +295,25 @@ export default function CaseDetailPage() {
 
     setUploading(true);
     try {
-      const updated = await api.addEvidence(caseId, {
-        ruleKey: uploadRuleKey,
-        name: uploadName,
-        mediaType: uploadMediaType as any,
-        storageUrl: uploadStorageUrl,
-        ocrExtractedText: uploadOcrText || undefined,
-        ocrConfidence: uploadOcrText ? 99 : undefined,
-        technicianNote: uploadTechnicianNote || undefined,
-      });
+      const updated = await api.uploadEvidenceFile(
+        caseId,
+        selectedFile,
+        uploadRuleKey,
+        uploadName,
+        uploadOcrText || undefined,
+      );
       setCaseData(updated);
+      // Release the object URL to free memory
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setRetakeModalOpen(false);
       showToast(
         uploadReasonCode
           ? `Evidence replaced for "${uploadName}"! Reject reason resolved and ticket returned to Review.`
-          : `Evidence for "${uploadName}" saved to case.`,
+          : `Evidence for "${uploadName}" uploaded successfully.`,
         'success'
       );
     } catch (err: any) {
-      showToast(err.message || 'Failed to submit retake evidence', 'error');
+      showToast(err.message || 'Failed to upload evidence', 'error');
     } finally {
       setUploading(false);
     }
@@ -1060,15 +1054,13 @@ export default function CaseDetailPage() {
               onClick={handleSubmitRetake}
               disabled={
                 uploading ||
-                !uploadStorageUrl ||
-                Boolean(uploadReasonCode && !fixConfirmed) ||
-                Boolean(uploadReasonCode && uploadPreviousPhotoUrl && uploadStorageUrl === uploadPreviousPhotoUrl)
+                !selectedFile ||
+                Boolean(uploadReasonCode && !fixConfirmed)
               }
               className={`text-xs py-2.5 px-5 flex items-center gap-1.5 font-bold transition-all rounded-xl ${
                 uploading ||
-                !uploadStorageUrl ||
-                (uploadReasonCode && !fixConfirmed) ||
-                (uploadReasonCode && uploadPreviousPhotoUrl && uploadStorageUrl === uploadPreviousPhotoUrl)
+                !selectedFile ||
+                (uploadReasonCode && !fixConfirmed)
                   ? 'opacity-50 cursor-not-allowed bg-gray-800 text-gray-400 border border-gray-700'
                   : uploadReasonCode
                   ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]'

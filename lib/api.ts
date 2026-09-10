@@ -344,6 +344,44 @@ export const api = {
     return handleResponse(res);
   },
 
+  // Real multipart file upload — S3 or local disk
+  async uploadEvidenceFile(
+    caseId: string,
+    file: File,
+    ruleKey: string,
+    evidenceName?: string,
+    ocrExtractedText?: string,
+  ): Promise<WarrantyCase> {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("ruleKey", ruleKey);
+    if (evidenceName) formData.append("evidenceName", evidenceName);
+    if (ocrExtractedText) formData.append("ocrExtractedText", ocrExtractedText);
+
+    // Build auth headers WITHOUT Content-Type — browser sets multipart boundary automatically
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("booran_auth_token") || localStorage.getItem("booran_jwt");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const userStr = localStorage.getItem("booran_user") || localStorage.getItem("booran_user_profile");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.role) headers["X-User-Role"] = user.role;
+          if (user.id) headers["X-User-Id"] = user.id;
+          if (user.name) headers["X-User-Name"] = user.name;
+        } catch { /* ignore */ }
+      }
+    }
+
+    const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/evidence/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    return handleResponse(res);
+  },
+
   async addVoiceNote(
     caseId: string,
     data: {
