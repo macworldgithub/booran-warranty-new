@@ -5,13 +5,214 @@ import Link from 'next/link';
 import { Header } from '../../../components/header';
 import { StatCard } from '../../../components/stat-card';
 import { api } from '../../../lib/api';
-import { DashboardKPIs, FlagReasonStat, SitePerformance } from '../../../lib/types';
+import { DashboardKPIs, FlagReasonStat, SitePerformance, WarrantyCase } from '../../../lib/types';
+
+const FLAG_REASON_LABELS: Record<string, string> = {
+  POOR_LIGHTING_BLUR: 'Blurry / Under-Exposed',
+  MISSING_SHOT: 'Missing Evidence Shot',
+  UNREADABLE_VIN: 'Unreadable VIN Plate',
+  WRONG_ANGLE: 'Wrong Angle / Framing',
+  NO_SERIAL: 'Missing Part Serial',
+  NO_DTC: 'Missing DTC / Scanner',
+  VIDEO_TOO_SHORT: 'Video Too Short',
+  INCORRECT_MEDIA_TYPE: 'Incorrect Media Type',
+  OTHER: 'Other Issue',
+};
+
+function FlaggedCasesModal({
+  isOpen,
+  onClose,
+  siteName,
+  siteId,
+  cases,
+  loading,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  siteName: string;
+  siteId: string | null;
+  cases: WarrantyCase[];
+  loading: boolean;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
+      <div
+        className="w-full max-w-3xl bg-[#0d1b3e] border border-[#1a56db]/30 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden animate-scaleIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-[#1a56db]/20 flex items-center justify-between bg-[#081225]/60">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/40 flex items-center justify-center text-[#ef4444]">
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white tracking-tight">Flagged Cases — {siteName}</h3>
+              <p className="text-[11px] text-[#cbd5e1]/60 mt-0.5">
+                {cases.length} case{cases.length !== 1 ? 's' : ''} requiring evidence retake or clarification
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-[#64748b] hover:text-white hover:bg-[#132952] transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 max-h-[70vh] overflow-y-auto space-y-3">
+          {loading ? (
+            <div className="py-16 flex flex-col items-center justify-center gap-3">
+              <div className="w-8 h-8 border-2 border-[#ef4444]/30 border-t-[#ef4444] rounded-full animate-spin" />
+              <p className="text-xs text-[#64748b]">Loading flagged cases...</p>
+            </div>
+          ) : cases.length === 0 ? (
+            <div className="py-16 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[#10b981]/10 flex items-center justify-center mx-auto text-[#10b981]">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-white">No flagged cases</p>
+              <p className="text-xs text-[#64748b]">All cases for this rooftop are currently clear.</p>
+            </div>
+          ) : (
+            cases.map((c) => {
+              const vin = c.vin || c.vehicle?.vin || '';
+              const model = c.model || c.vehicle?.model || '';
+              const make = c.make || c.vehicle?.make || '';
+              const year = c.year || c.vehicle?.year || '';
+              const powertrain = c.powertrain || c.vehicle?.powertrain || '';
+              const concernTitle = c.concernTitle || c.concern?.title || '';
+              const activeFlags = (c.flagHistory || c.flags || []).filter((f: any) => !f.resolvedAt);
+              const latestFlag = activeFlags.length > 0 ? activeFlags[activeFlags.length - 1] : null;
+
+              return (
+                <div
+                  key={c.id}
+                  className="rounded-xl border border-[#ef4444]/20 bg-gradient-to-r from-[#1c080e]/60 via-[#0d1b3e] to-[#0d1b3e] p-4 hover:border-[#ef4444]/40 transition-all group"
+                >
+                  {/* Top row: RO + Vehicle + Badges */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-black text-white">{c.roNumber}</span>
+                        {c.claimNumber && (
+                          <span className="text-[10px] font-mono text-[#64748b]">{c.claimNumber}</span>
+                        )}
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30">
+                          Flagged
+                        </span>
+                        {powertrain && (
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                            powertrain === 'EV'
+                              ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30'
+                              : powertrain === 'Hybrid' || powertrain === 'PHEV'
+                              ? 'bg-[#f59e0b]/20 text-[#f59e0b] border border-[#f59e0b]/30'
+                              : 'bg-[#64748b]/20 text-[#cbd5e1] border border-[#64748b]/30'
+                          }`}>
+                            {powertrain}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#cbd5e1]/80 mt-1 truncate">
+                        {year} {make} {model}
+                        {vin && <span className="text-[#64748b] ml-2 font-mono text-[10px]">VIN: {vin.slice(-8)}</span>}
+                      </p>
+                      <p className="text-[11px] text-[#cbd5e1]/60 mt-0.5 truncate" title={concernTitle}>
+                        {concernTitle}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[10px] text-[#64748b]">{c.technicianName}</p>
+                      <p className="text-[10px] text-[#64748b]">{c.brandName}</p>
+                    </div>
+                  </div>
+
+                  {/* Flag Alert */}
+                  {latestFlag && (
+                    <div className="rounded-lg bg-[#ef4444]/8 border border-[#ef4444]/20 p-3 mb-3">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-3.5 h-3.5 text-[#ef4444] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[11px] font-bold text-[#ef4444]">
+                              {FLAG_REASON_LABELS[latestFlag.reasonCode] || latestFlag.reasonCode}
+                            </span>
+                            <span className="text-[9px] text-[#64748b] font-mono">
+                              Gate: {latestFlag.evidenceRuleKey}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[#cbd5e1]/70 mt-1 leading-relaxed">
+                            {latestFlag.instruction}
+                          </p>
+                          <p className="text-[9px] text-[#64748b] mt-1">
+                            Flagged by {latestFlag.flaggedBy} · {new Date(latestFlag.flaggedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action */}
+                  <div className="flex items-center justify-end">
+                    <Link
+                      href={`/cases/${c.id}`}
+                      className="px-3 py-1.5 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-[11px] font-bold hover:bg-[#ef4444]/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Open Case Review & Evidence →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3.5 border-t border-[#1a56db]/20 bg-[#081225]/40 flex items-center justify-between">
+          <span className="text-[11px] text-[#64748b]">
+            {cases.length} flagged case{cases.length !== 1 ? 's' : ''}
+          </span>
+          <Link
+            href={siteId ? `/cases?siteId=${siteId}&flaggedOnly=true` : '/cases?flaggedOnly=true'}
+            className="text-[11px] font-bold text-[#00f0ff] hover:underline flex items-center gap-1"
+            onClick={onClose}
+          >
+            View all in Cases CRM →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [flagReasons, setFlagReasons] = useState<FlagReasonStat[]>([]);
   const [sites, setSites] = useState<SitePerformance[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Flagged modal state
+  const [flaggedModalOpen, setFlaggedModalOpen] = useState(false);
+  const [flaggedModalSiteName, setFlaggedModalSiteName] = useState('');
+  const [flaggedModalSiteId, setFlaggedModalSiteId] = useState<string | null>(null);
+  const [flaggedCases, setFlaggedCases] = useState<WarrantyCase[]>([]);
+  const [flaggedLoading, setFlaggedLoading] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -32,6 +233,24 @@ export default function DashboardPage() {
     }
     loadData();
   }, []);
+
+  async function openFlaggedModal(siteId: string | null, siteName: string) {
+    setFlaggedModalSiteId(siteId);
+    setFlaggedModalSiteName(siteName);
+    setFlaggedModalOpen(true);
+    setFlaggedLoading(true);
+    try {
+      const params: any = { flaggedOnly: true };
+      if (siteId) params.siteId = siteId;
+      const data = await api.getWarrantyCases(params);
+      setFlaggedCases(data);
+    } catch (err) {
+      console.error('Failed to load flagged cases:', err);
+      setFlaggedCases([]);
+    } finally {
+      setFlaggedLoading(false);
+    }
+  }
 
   return (
     <div className="flex-1 flex flex-col pb-12">
@@ -69,19 +288,21 @@ export default function DashboardPage() {
               </svg>
             }
           />
-          <StatCard
-            label="Flagged Queue"
-            value={kpis?.activeFlaggedCases ?? '...'}
-            subtext="Requires retake/clarification"
-            accent="red"
-            trend="-3 cases"
-            trendPositive={true}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            }
-          />
+          <div className="cursor-pointer" onClick={() => openFlaggedModal(null, 'All Rooftops')}>
+            <StatCard
+              label="Flagged Queue"
+              value={kpis?.activeFlaggedCases ?? '...'}
+              subtext="Requires retake/clarification"
+              accent="red"
+              trend="-3 cases"
+              trendPositive={true}
+              icon={
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              }
+            />
+          </div>
           <StatCard
             label="Avg Velocity"
             value={kpis ? `${kpis.avgWorkshopToSubmittedHours}h` : '...'}
@@ -159,9 +380,13 @@ export default function DashboardPage() {
                         </td>
                         <td className="py-3 px-3 text-center">
                           {site.flaggedCount > 0 ? (
-                            <span className="px-2 py-0.5 rounded-full bg-[#ef4444]/20 text-[#ef4444] font-bold">
+                            <button
+                              onClick={() => openFlaggedModal(site.siteId, site.siteName)}
+                              className="px-2.5 py-0.5 rounded-full bg-[#ef4444]/20 text-[#ef4444] font-bold cursor-pointer hover:bg-[#ef4444]/30 hover:shadow-[0_0_12px_rgba(239,68,68,0.35)] transition-all duration-200 border border-transparent hover:border-[#ef4444]/40"
+                              title={`View ${site.flaggedCount} flagged cases for ${site.siteName}`}
+                            >
                               {site.flaggedCount}
-                            </span>
+                            </button>
                           ) : (
                             <span className="text-[#64748b]">0</span>
                           )}
@@ -247,6 +472,16 @@ export default function DashboardPage() {
             Open Live Cases Queue →
           </Link>
         </div>
+
+        {/* Flagged Cases Modal */}
+        <FlaggedCasesModal
+          isOpen={flaggedModalOpen}
+          onClose={() => setFlaggedModalOpen(false)}
+          siteName={flaggedModalSiteName}
+          siteId={flaggedModalSiteId}
+          cases={flaggedCases}
+          loading={flaggedLoading}
+        />
       </div>
     </div>
   );

@@ -2,22 +2,27 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Header } from '../../../components/header';
 import { StatusBadge } from '../../../components/status-badge';
 import { api } from '../../../lib/api';
 import { WarrantyCase, CaseStatus } from '../../../lib/types';
 
 export default function CasesPage() {
+  const searchParams = useSearchParams();
   const [cases, setCases] = useState<WarrantyCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [brandFilter, setBrandFilter] = useState<string>('ALL');
+  const [siteFilter, setSiteFilter] = useState<string>('ALL');
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+  const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
+  // Read URL params on mount (deep-link from dashboard)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
@@ -32,11 +37,20 @@ export default function CasesPage() {
         }
       }
     }
+
+    // Initialize filters from URL search params
+    const urlSiteId = searchParams.get('siteId');
+    const urlStatus = searchParams.get('status');
+    const urlFlagged = searchParams.get('flaggedOnly');
+    if (urlSiteId) setSiteFilter(urlSiteId);
+    if (urlStatus) setStatusFilter(urlStatus);
+    if (urlFlagged === 'true') setFlaggedOnly(true);
+    setInitializedFromUrl(true);
   }, []);
 
   useEffect(() => {
-    loadCases();
-  }, [statusFilter, brandFilter, flaggedOnly, userRole, userName]);
+    if (initializedFromUrl) loadCases();
+  }, [statusFilter, brandFilter, siteFilter, flaggedOnly, userRole, userName, initializedFromUrl]);
 
   async function loadCases() {
     setLoading(true);
@@ -44,6 +58,7 @@ export default function CasesPage() {
       const params: any = {};
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (brandFilter !== 'ALL') params.brandId = brandFilter;
+      if (siteFilter !== 'ALL') params.siteId = siteFilter;
       if (flaggedOnly) params.flaggedOnly = true;
 
       if (userRole === 'TECHNICIAN') {
@@ -189,6 +204,18 @@ export default function CasesPage() {
               <option value="brand_kia">Kia</option>
               <option value="brand_mg">MG</option>
               <option value="brand_toyota">Toyota</option>
+            </select>
+
+            <select
+              value={siteFilter}
+              onChange={(e) => setSiteFilter(e.target.value)}
+              className="input-field text-xs w-52"
+            >
+              <option value="ALL">All Rooftops</option>
+              <option value="site_cranbourne_byd">Cranbourne BYD</option>
+              <option value="site_dandenong_multi">Dandenong Multi-Franchise</option>
+              <option value="site_cheltenham_mg">Cheltenham MG & Chery</option>
+              <option value="site_berwick_toyota_ford">Berwick Commercials</option>
             </select>
           </div>
 
