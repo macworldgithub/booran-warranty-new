@@ -58,6 +58,7 @@ export default function CaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('');
+  const [userName, setUserName] = useState<string>('');
 
   // Modals
   const [flagModalOpen, setFlagModalOpen] = useState(false);
@@ -98,6 +99,7 @@ export default function CaseDetailPage() {
         try {
           const user = JSON.parse(userStr);
           setUserRole(user.role || '');
+          setUserName(user.name || '');
         } catch {
           // ignore
         }
@@ -162,11 +164,12 @@ export default function CaseDetailPage() {
       return;
     }
     try {
+      const adminName = userName ? `${userName} (Warranty Admin)` : 'Warranty Admin';
       const updated = await api.flagCase(caseId, {
         evidenceRuleKey: flagRuleKey || 'fault_location',
         reasonCode: flagReason,
         instruction: flagInstruction,
-        flaggedBy: 'Sarah Jenkins (Warranty Clerk)',
+        flaggedBy: adminName,
       });
       setCaseData(updated);
       setFlagModalOpen(false);
