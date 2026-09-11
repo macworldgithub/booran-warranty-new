@@ -460,6 +460,15 @@ export const api = {
   },
 
   // Voice to Tech
+  getLiveVoiceWebSocketUrl(): string {
+    if (typeof window === "undefined") return "";
+    const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = process.env.NEXT_PUBLIC_API_URL
+      ? new URL(process.env.NEXT_PUBLIC_API_URL).host
+      : "localhost:4000";
+    return `${wsProto}//${host}/api/v1/voice-to-tech/live`;
+  },
+
   async transcribeAudio(data: {
     audioUrl?: string;
     audioBase64?: string;
