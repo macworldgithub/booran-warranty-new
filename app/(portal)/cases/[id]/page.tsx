@@ -326,25 +326,11 @@ export default function CaseDetailPage() {
     }
   }
 
-  if (loading || !caseData) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-[#00f0ff]/30 border-t-[#00f0ff] rounded-full animate-spin" />
-        <p className="text-xs text-[#64748b]">Loading case details...</p>
-      </div>
-    );
-  }
-
-  const completedMandatory = caseData.checklistSummary?.completedMandatory ?? 0;
-  const totalMandatory = caseData.checklistSummary?.totalMandatory ?? 1;
-  const gatePercent = Math.round((completedMandatory / (totalMandatory || 1)) * 100);
-
-  const evidenceList = caseData.evidenceItems || caseData.evidence || [];
-  const flagsList = caseData.flagHistory || caseData.flags || [];
-  const unresolvedFlags = flagsList.filter((f) => !f.resolvedAt);
-  const hasUnresolvedFlags = unresolvedFlags.length > 0;
+  const evidenceList = caseData?.evidenceItems || caseData?.evidence || [];
+  const flagsList = caseData?.flagHistory || caseData?.flags || [];
 
   const filteredEvidence = useMemo(() => {
+    if (!caseData) return [];
     return evidenceList.filter((item) => {
       const activeFlag = flagsList.find((f) => f.evidenceRuleKey === item.ruleKey && !f.resolvedAt);
 
@@ -362,7 +348,23 @@ export default function CaseDetailPage() {
 
       return matchName || matchKey || matchOcr || matchReason;
     });
-  }, [evidenceList, flagsList, evidenceFilter, evidenceSearch]);
+  }, [evidenceList, flagsList, evidenceFilter, evidenceSearch, caseData]);
+
+  if (loading || !caseData) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-2 border-[#00f0ff]/30 border-t-[#00f0ff] rounded-full animate-spin" />
+        <p className="text-xs text-[#64748b]">Loading case details...</p>
+      </div>
+    );
+  }
+
+  const completedMandatory = caseData.checklistSummary?.completedMandatory ?? 0;
+  const totalMandatory = caseData.checklistSummary?.totalMandatory ?? 1;
+  const gatePercent = Math.round((completedMandatory / (totalMandatory || 1)) * 100);
+
+  const unresolvedFlags = flagsList.filter((f) => !f.resolvedAt);
+  const hasUnresolvedFlags = unresolvedFlags.length > 0;
 
   return (
     <div className="flex-1 flex flex-col pb-12">
