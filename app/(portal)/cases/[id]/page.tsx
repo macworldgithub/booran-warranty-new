@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '../../../../components/header';
@@ -59,6 +59,10 @@ export default function CaseDetailPage() {
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+
+  // Evidence Gallery Search & Filter State
+  const [evidenceSearch, setEvidenceSearch] = useState('');
+  const [evidenceFilter, setEvidenceFilter] = useState<'ALL' | 'FLAGGED' | 'MANDATORY' | 'PHOTO' | 'VIDEO'>('ALL');
 
   // Modals
   const [flagModalOpen, setFlagModalOpen] = useState(false);
@@ -339,6 +343,26 @@ export default function CaseDetailPage() {
   const flagsList = caseData.flagHistory || caseData.flags || [];
   const unresolvedFlags = flagsList.filter((f) => !f.resolvedAt);
   const hasUnresolvedFlags = unresolvedFlags.length > 0;
+
+  const filteredEvidence = useMemo(() => {
+    return evidenceList.filter((item) => {
+      const activeFlag = flagsList.find((f) => f.evidenceRuleKey === item.ruleKey && !f.resolvedAt);
+
+      if (evidenceFilter === 'FLAGGED' && !activeFlag) return false;
+      if (evidenceFilter === 'MANDATORY' && !((item as any).isMandatory || ['vin_photo', 'odometer_photo', 'front_vehicle_photo', 'fault_location'].includes(item.ruleKey))) return false;
+      if (evidenceFilter === 'PHOTO' && item.mediaType !== 'image') return false;
+      if (evidenceFilter === 'VIDEO' && item.mediaType !== 'video') return false;
+
+      if (!evidenceSearch.trim()) return true;
+      const q = evidenceSearch.toLowerCase().trim();
+      const matchName = item.name?.toLowerCase().includes(q);
+      const matchKey = item.ruleKey?.toLowerCase().includes(q);
+      const matchOcr = item.ocrExtractedText?.toLowerCase().includes(q);
+      const matchReason = activeFlag?.reasonCode?.toLowerCase().includes(q);
+
+      return matchName || matchKey || matchOcr || matchReason;
+    });
+  }, [evidenceList, flagsList, evidenceFilter, evidenceSearch]);
 
   return (
     <div className="flex-1 flex flex-col pb-12">
@@ -714,7 +738,7 @@ export default function CaseDetailPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-[#00f0ff] font-semibold">
-                {evidenceList.length} Captured Items
+                {filteredEvidence.length} of {evidenceList.length} Items Shown
               </span>
               {userRole === 'TECHNICIAN' && (
                 <button
@@ -731,8 +755,95 @@ export default function CaseDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {evidenceList.map((item) => {
+          {/* Evidence Search & Filter Toolbar */}
+          <div className="p-3.5 rounded-xl bg-[#081225]/60 border border-[#1a56db]/20 flex flex-wrap items-center justify-between gap-3">
+            <div className="relative flex-1 min-w-[240px]">
+              <input
+                type="text"
+                placeholder="Search evidence shots by name, rule (e.g. VIN, odometer, isolation)..."
+                value={evidenceSearch}
+                onChange={(e) => setEvidenceSearch(e.target.value)}
+                className="input-field pl-8 pr-7 text-xs w-full py-2"
+              />
+              <svg
+                className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-[#64748b]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              {evidenceSearch && (
+                <button
+                  onClick={() => setEvidenceSearch('')}
+                  className="absolute right-2.5 top-2 text-[#64748b] hover:text-white text-xs"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'ALL', label: 'All Items' },
+                { id: 'FLAGGED', label: 'Flagged Only' },
+                { id: 'MANDATORY', label: 'Mandatory' },
+                { id: 'PHOTO', label: 'Photos' },
+                { id: 'VIDEO', label: 'Videos' },
+              ].map((f) => {
+                const isSelected = evidenceFilter === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => setEvidenceFilter(f.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      isSelected
+                        ? 'bg-[#1a56db] text-white shadow-[0_0_10px_rgba(26,86,219,0.5)]'
+                        : 'bg-[#0d1b3e] text-[#94a3b8] hover:text-white border border-[#1a56db]/20'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+              {(evidenceSearch || evidenceFilter !== 'ALL') && (
+                <button
+                  onClick={() => {
+                    setEvidenceSearch('');
+                    setEvidenceFilter('ALL');
+                  }}
+                  className="text-[#00f0ff] hover:underline font-semibold text-xs ml-1"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredEvidence.length === 0 ? (
+            <div className="py-12 text-center rounded-xl border border-dashed border-[#1a56db]/20 bg-[#081225]/40 space-y-2">
+              <p className="text-xs text-[#cbd5e1] font-semibold">No evidence items match your filters</p>
+              <p className="text-[11px] text-[#64748b]">Try clearing your search query or switching to All Items.</p>
+              <button
+                onClick={() => {
+                  setEvidenceSearch('');
+                  setEvidenceFilter('ALL');
+                }}
+                className="text-xs text-[#00f0ff] hover:underline font-semibold pt-1 inline-block"
+              >
+                Show all {evidenceList.length} evidence items
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredEvidence.map((item) => {
               const activeFlag = flagsList.find((f) => f.evidenceRuleKey === item.ruleKey && !f.resolvedAt);
 
               return (
@@ -816,7 +927,8 @@ export default function CaseDetailPage() {
               );
             })}
           </div>
-        </div>
+        )}
+      </div>
 
         {/* Voice to Tech Dictation Section */}
         <div className="glass-card-static p-6 border border-[#1a56db]/20 space-y-4">

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Header } from '../../../components/header';
 import { StatCard } from '../../../components/stat-card';
+import { AddBrandRuleModal } from '../../../components/add-brand-rule-modal';
 import { api } from '../../../lib/api';
-import { DashboardKPIs, FlagReasonStat, SitePerformance, WarrantyCase } from '../../../lib/types';
+import { BrandPack, DashboardKPIs, FlagReasonStat, SitePerformance, WarrantyCase } from '../../../lib/types';
 
 const FLAG_REASON_LABELS: Record<string, string> = {
   POOR_LIGHTING_BLUR: 'Blurry / Under-Exposed',
@@ -34,6 +35,32 @@ function FlaggedCasesModal({
   cases: WarrantyCase[];
   loading: boolean;
 }) {
+  const [modalSearch, setModalSearch] = useState('');
+
+  const filteredCases = useMemo(() => {
+    if (!modalSearch.trim()) return cases;
+    const q = modalSearch.toLowerCase().trim();
+
+    return cases.filter((c) => {
+      const ro = c.roNumber?.toLowerCase() || '';
+      const vin = (c.vin || c.vehicle?.vin || '').toLowerCase();
+      const model = (c.model || c.vehicle?.model || '').toLowerCase();
+      const make = (c.make || c.vehicle?.make || '').toLowerCase();
+      const tech = (c.technicianName || '').toLowerCase();
+      const claim = (c.claimNumber || '').toLowerCase();
+      const concern = (c.concernTitle || c.concern?.title || '').toLowerCase();
+      const activeFlags = (c.flagHistory || c.flags || []).filter((f: any) => !f.resolvedAt);
+      const flagMatch = activeFlags.some((f: any) =>
+        f.reasonCode?.toLowerCase().includes(q) ||
+        f.instruction?.toLowerCase().includes(q) ||
+        FLAG_REASON_LABELS[f.reasonCode]?.toLowerCase().includes(q) ||
+        f.evidenceRuleKey?.toLowerCase().includes(q)
+      );
+
+      return ro.includes(q) || vin.includes(q) || model.includes(q) || make.includes(q) || tech.includes(q) || claim.includes(q) || concern.includes(q) || flagMatch;
+    });
+  }, [cases, modalSearch]);
+
   if (!isOpen) return null;
 
   return (
@@ -67,6 +94,41 @@ function FlaggedCasesModal({
           </button>
         </div>
 
+        {/* Modal Search Bar */}
+        {cases.length > 0 && (
+          <div className="px-6 py-2.5 bg-[#081225]/40 border-b border-[#1a56db]/15 flex items-center gap-3">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search by RO, VIN, Model, Technician, or Reason..."
+                value={modalSearch}
+                onChange={(e) => setModalSearch(e.target.value)}
+                className="input-field pl-8 pr-7 text-xs w-full py-1.5"
+              />
+              <svg
+                className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-[#64748b]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              {modalSearch && (
+                <button
+                  onClick={() => setModalSearch('')}
+                  className="absolute right-2.5 top-2 text-[#64748b] hover:text-white text-xs"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <span className="text-[11px] text-[#64748b] whitespace-nowrap">
+              Showing <strong className="text-white">{filteredCases.length}</strong> of <strong className="text-white">{cases.length}</strong>
+            </span>
+          </div>
+        )}
+
         {/* Content */}
         <div className="p-5 max-h-[70vh] overflow-y-auto space-y-3">
           {loading ? (
@@ -84,8 +146,18 @@ function FlaggedCasesModal({
               <p className="text-sm font-semibold text-white">No flagged cases</p>
               <p className="text-xs text-[#64748b]">All cases for this rooftop are currently clear.</p>
             </div>
+          ) : filteredCases.length === 0 ? (
+            <div className="py-12 text-center space-y-2">
+              <p className="text-xs font-semibold text-white">No flagged cases match "{modalSearch}"</p>
+              <button
+                onClick={() => setModalSearch('')}
+                className="text-xs text-[#00f0ff] hover:underline font-semibold"
+              >
+                Clear search filter
+              </button>
+            </div>
           ) : (
-            cases.map((c) => {
+            filteredCases.map((c) => {
               const vin = c.vin || c.vehicle?.vin || '';
               const model = c.model || c.vehicle?.model || '';
               const make = c.make || c.vehicle?.make || '';
@@ -205,6 +277,7 @@ export default function DashboardPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [flagReasons, setFlagReasons] = useState<FlagReasonStat[]>([]);
   const [sites, setSites] = useState<SitePerformance[]>([]);
+  const [brandPacks, setBrandPacks] = useState<BrandPack[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Flagged modal state
@@ -214,17 +287,23 @@ export default function DashboardPage() {
   const [flaggedCases, setFlaggedCases] = useState<WarrantyCase[]>([]);
   const [flaggedLoading, setFlaggedLoading] = useState(false);
 
+  // Add Brand Rule & CSV/Excel Import Modal state
+  const [ruleModalOpen, setRuleModalOpen] = useState(false);
+  const [ruleModalMode, setRuleModalMode] = useState<'MANUAL' | 'IMPORT'>('MANUAL');
+
   useEffect(() => {
     async function loadData() {
       try {
-        const [kpiRes, flagRes, siteRes] = await Promise.all([
+        const [kpiRes, flagRes, siteRes, packsRes] = await Promise.all([
           api.getKPIs(),
           api.getFlagReasons(),
           api.getSitePerformance(),
+          api.getBrandPacks().catch(() => []),
         ]);
         setKpis(kpiRes);
         setFlagReasons(flagRes);
         setSites(siteRes);
+        setBrandPacks(packsRes || []);
       } catch (err) {
         console.error('Failed to load dashboard:', err);
       } finally {
@@ -260,6 +339,59 @@ export default function DashboardPage() {
       />
 
       <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
+        {/* OEM Standards & Rules Quick Action Banner */}
+        <div className="p-4 rounded-2xl bg-[#081225] border border-[#1a56db]/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#1a56db]/30 to-[#00f0ff]/20 border border-[#00f0ff]/40 flex items-center justify-center text-[#00f0ff] shrink-0 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-white">OEM Evidence Standards & Rules Engine</h3>
+                <span className="px-2 py-0.5 rounded-full bg-[#10b981]/20 text-[#10b981] text-[10px] font-mono font-bold border border-[#10b981]/30">
+                  {brandPacks.length} Active Packs
+                </span>
+                <span className="text-[11px] text-[#64748b] font-mono">
+                  ({brandPacks.reduce((acc, p) => acc + (p.rules?.length || 0), 0)} Total Gates)
+                </span>
+              </div>
+              <p className="text-xs text-[#cbd5e1]/70 mt-0.5">
+                Add required photo/video gates for technicians or bulk import warranty checklist guidelines from CSV/Excel.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <button
+              onClick={() => {
+                setRuleModalMode('MANUAL');
+                setRuleModalOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#1a56db] to-[#00f0ff]/80 hover:from-[#1a56db]/90 hover:to-[#00f0ff] text-white font-bold text-xs shadow-[0_0_15px_rgba(26,86,219,0.4)] flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>➕ Add Brand Rule</span>
+            </button>
+            <button
+              onClick={() => {
+                setRuleModalMode('IMPORT');
+                setRuleModalOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-[#0d1b3e] hover:bg-[#132952] text-[#00f0ff] border border-[#00f0ff]/30 font-bold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>📁 Upload CSV / Excel</span>
+            </button>
+            <Link
+              href="/brand-packs"
+              className="px-3 py-2 rounded-xl bg-[#081225] hover:bg-[#132952] text-[#cbd5e1] border border-[#1a56db]/20 text-xs font-semibold flex items-center gap-1 transition-all"
+            >
+              <span>Rules CRM</span>
+              <span>➔</span>
+            </Link>
+          </div>
+        </div>
+
         {/* KPI Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
@@ -481,6 +613,17 @@ export default function DashboardPage() {
           siteId={flaggedModalSiteId}
           cases={flaggedCases}
           loading={flaggedLoading}
+        />
+
+        {/* Add Brand Rule & Spreadsheet Import Modal */}
+        <AddBrandRuleModal
+          isOpen={ruleModalOpen}
+          onClose={() => setRuleModalOpen(false)}
+          initialMode={ruleModalMode}
+          onSuccess={() => {
+            // refresh brand packs data
+            api.getBrandPacks().then((data) => setBrandPacks(data)).catch(() => {});
+          }}
         />
       </div>
     </div>

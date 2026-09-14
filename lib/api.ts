@@ -3,6 +3,7 @@ import {
   Site,
   Brand,
   BrandPack,
+  BrandPackRule,
   WarrantyCase,
   DashboardKPIs,
   FlagReasonStat,
@@ -251,6 +252,24 @@ export const api = {
     const res = await fetch(`${BASE_URL}/brand-packs/${id}/publish`, {
       method: "POST",
       headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async addBrandPackRule(packId: string, rule: Partial<BrandPackRule>): Promise<BrandPack> {
+    const res = await fetch(`${BASE_URL}/brand-packs/${packId}/rules`, {
+      method: "POST",
+      headers: getAuthHeader(),
+      body: JSON.stringify(rule),
+    });
+    return handleResponse(res);
+  },
+
+  async batchAddBrandPackRules(packId: string, rules: Partial<BrandPackRule>[]): Promise<BrandPack> {
+    const res = await fetch(`${BASE_URL}/brand-packs/${packId}/rules/batch`, {
+      method: "POST",
+      headers: getAuthHeader(),
+      body: JSON.stringify({ rules }),
     });
     return handleResponse(res);
   },

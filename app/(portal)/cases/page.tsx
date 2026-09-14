@@ -17,12 +17,13 @@ export default function CasesPage() {
   const [brandFilter, setBrandFilter] = useState<string>('ALL');
   const [siteFilter, setSiteFilter] = useState<string>('ALL');
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [ruleFilter, setRuleFilter] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
   const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
-  // Read URL params on mount (deep-link from dashboard)
+  // Read URL params on mount (deep-link from dashboard or brand packs)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
@@ -42,15 +43,17 @@ export default function CasesPage() {
     const urlSiteId = searchParams.get('siteId');
     const urlStatus = searchParams.get('status');
     const urlFlagged = searchParams.get('flaggedOnly');
+    const urlRuleKey = searchParams.get('ruleKey') || searchParams.get('flagRule');
     if (urlSiteId) setSiteFilter(urlSiteId);
     if (urlStatus) setStatusFilter(urlStatus);
     if (urlFlagged === 'true') setFlaggedOnly(true);
+    if (urlRuleKey) setRuleFilter(urlRuleKey);
     setInitializedFromUrl(true);
   }, []);
 
   useEffect(() => {
     if (initializedFromUrl) loadCases();
-  }, [statusFilter, brandFilter, siteFilter, flaggedOnly, userRole, userName, initializedFromUrl]);
+  }, [statusFilter, brandFilter, siteFilter, flaggedOnly, userRole, userName, ruleFilter, initializedFromUrl]);
 
   async function loadCases() {
     setLoading(true);
@@ -88,19 +91,38 @@ export default function CasesPage() {
       if (!isMyCase) return false;
     }
 
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    const vin = c.vin || c.vehicle?.vin || '';
-    const model = c.model || c.vehicle?.model || '';
-    const concernTitle = c.concernTitle || c.concern?.title || '';
-    const technicianName = c.technicianName || '';
-    const roNumber = c.roNumber || '';
+    if (ruleFilter) {
+      const flags = c.flagHistory || c.flags || [];
+      const matchesFlag = flags.some((f: any) => !f.resolvedAt && f.evidenceRuleKey === ruleFilter);
+      const evidence = c.evidenceItems || c.evidence || [];
+      const matchesEv = evidence.some((e: any) => e.ruleKey === ruleFilter);
+      if (!matchesFlag && !matchesEv) return false;
+    }
+
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const vin = (c.vin || c.vehicle?.vin || '').toLowerCase();
+    const model = (c.model || c.vehicle?.model || '').toLowerCase();
+    const make = (c.make || c.vehicle?.make || '').toLowerCase();
+    const concernTitle = (c.concernTitle || c.concern?.title || '').toLowerCase();
+    const faultCategory = (c.faultCategory || '').toLowerCase();
+    const technicianName = (c.technicianName || '').toLowerCase();
+    const roNumber = (c.roNumber || '').toLowerCase();
+    const claimNumber = (c.claimNumber || '').toLowerCase();
+    const siteName = (c.siteName || '').toLowerCase();
+    const brandName = (c.brandName || '').toLowerCase();
+
     return (
-      roNumber.toLowerCase().includes(q) ||
-      vin.toLowerCase().includes(q) ||
-      model.toLowerCase().includes(q) ||
-      technicianName.toLowerCase().includes(q) ||
-      concernTitle.toLowerCase().includes(q)
+      roNumber.includes(q) ||
+      vin.includes(q) ||
+      model.includes(q) ||
+      make.includes(q) ||
+      technicianName.includes(q) ||
+      concernTitle.includes(q) ||
+      faultCategory.includes(q) ||
+      claimNumber.includes(q) ||
+      siteName.includes(q) ||
+      brandName.includes(q)
     );
   });
 
@@ -170,14 +192,23 @@ export default function CasesPage() {
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Search RO, VIN, Model, Technician..."
+                placeholder="Search RO, VIN, Model, Tech, Claim #, Concern, Category..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-field pl-9 text-xs"
+                className="input-field pl-9 pr-8 text-xs w-full"
               />
               <svg className="w-4 h-4 absolute left-3 top-3 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-2.5 text-[#64748b] hover:text-white text-xs"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
             <select
@@ -241,6 +272,48 @@ export default function CasesPage() {
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* Active Rule Filter Banner */}
+        {ruleFilter && (
+          <div className="px-4 py-3 rounded-xl bg-[#00f0ff]/10 border border-[#00f0ff]/30 flex items-center justify-between text-xs text-[#00f0ff] animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-ping" />
+              <span>
+                Filtering cases relevant to Evidence Rule: <strong>{ruleFilter}</strong> ({filteredCases.length} case{filteredCases.length === 1 ? '' : 's'} found)
+              </span>
+            </div>
+            <button
+              onClick={() => setRuleFilter('')}
+              className="px-2.5 py-1 rounded-lg bg-[#00f0ff]/20 hover:bg-[#00f0ff]/30 text-white font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <span>✕</span>
+              <span>Clear Filter</span>
+            </button>
+          </div>
+        )}
+
+        {/* Cases Results Counter */}
+        <div className="flex items-center justify-between text-xs text-[#64748b] px-1">
+          <span>
+            Showing <strong className="text-white">{filteredCases.length}</strong> of{' '}
+            <strong className="text-white">{cases.length}</strong> cases
+          </span>
+          {(searchQuery || statusFilter !== 'ALL' || brandFilter !== 'ALL' || siteFilter !== 'ALL' || flaggedOnly || ruleFilter) && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('ALL');
+                setBrandFilter('ALL');
+                setSiteFilter('ALL');
+                setFlaggedOnly(false);
+                setRuleFilter('');
+              }}
+              className="text-[#00f0ff] hover:underline font-semibold"
+            >
+              Reset All Filters
+            </button>
+          )}
         </div>
 
         {/* Cases Table */}
