@@ -1,4 +1,4 @@
-import {
+﻿import {
   UserProfile,
   Site,
   Brand,
@@ -166,16 +166,54 @@ export const api = {
     return handleResponse(res);
   },
 
+  async getSiteAuthorizedBrands(id: string): Promise<{ authorizedBrandIds: string[] }> {
+    const res = await fetch(`${BASE_URL}/sites/${id}/brands`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
   async createSite(data: {
     name: string;
     location: string;
     roPrefix: string;
-    authorizedBrandIds: string[];
+    authorizedBrandIds?: string[];
   }): Promise<Site> {
     const res = await fetch(`${BASE_URL}/sites`, {
       method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updateSite(id: string, data: {
+    name?: string;
+    location?: string;
+    roPrefix?: string;
+    isActive?: boolean;
+  }): Promise<Site> {
+    const res = await fetch(`${BASE_URL}/sites/${id}`, {
+      method: "PATCH",
+      headers: getAuthHeader(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updateSiteBrands(id: string, authorizedBrandIds: string[]): Promise<Site> {
+    const res = await fetch(`${BASE_URL}/sites/${id}/brands`, {
+      method: "PATCH",
+      headers: getAuthHeader(),
+      body: JSON.stringify({ authorizedBrandIds }),
+    });
+    return handleResponse(res);
+  },
+
+  async deactivateSite(id: string): Promise<{ message: string }> {
+    const res = await fetch(`${BASE_URL}/sites/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeader(),
     });
     return handleResponse(res);
   },
@@ -194,6 +232,42 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  async createBrand(data: {
+    name: string;
+    description: string;
+    seedChecklistReference?: string;
+  }): Promise<Brand> {
+    const res = await fetch(`${BASE_URL}/brands`, {
+      method: "POST",
+      headers: getAuthHeader(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updateBrand(id: string, data: {
+    name?: string;
+    description?: string;
+    seedChecklistReference?: string;
+    isActive?: boolean;
+  }): Promise<Brand> {
+    const res = await fetch(`${BASE_URL}/brands/${id}`, {
+      method: "PATCH",
+      headers: getAuthHeader(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async deactivateBrand(id: string): Promise<{ message: string }> {
+    const res = await fetch(`${BASE_URL}/brands/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
 
   // Brand Packs
   async getBrandPacks(): Promise<BrandPack[]> {
@@ -363,7 +437,7 @@ export const api = {
     return handleResponse(res);
   },
 
-  // Real multipart file upload — S3 or local disk
+  // Real multipart file upload â€” S3 or local disk
   async uploadEvidenceFile(
     caseId: string,
     file: File,
@@ -377,7 +451,7 @@ export const api = {
     if (evidenceName) formData.append("evidenceName", evidenceName);
     if (ocrExtractedText) formData.append("ocrExtractedText", ocrExtractedText);
 
-    // Build auth headers WITHOUT Content-Type — browser sets multipart boundary automatically
+    // Build auth headers WITHOUT Content-Type â€” browser sets multipart boundary automatically
     const headers: Record<string, string> = {};
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("booran_auth_token") || localStorage.getItem("booran_jwt");
