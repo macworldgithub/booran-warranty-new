@@ -64,29 +64,29 @@ function FlaggedCasesModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn" onClick={onClose}>
       <div
-        className="w-full max-w-3xl bg-[#0d1b3e] border border-[#1a56db]/30 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden animate-scaleIn"
+        className="w-full max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#1a56db]/20 flex items-center justify-between bg-[#081225]/60">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/40 flex items-center justify-center text-[#ef4444]">
+            <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26]">
               <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight">Flagged Cases — {siteName}</h3>
-              <p className="text-[11px] text-[#cbd5e1]/60 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">Flagged Cases — {siteName}</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 {cases.length} case{cases.length !== 1 ? 's' : ''} requiring evidence retake or clarification
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#64748b] hover:text-white hover:bg-[#132952] transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -96,7 +96,7 @@ function FlaggedCasesModal({
 
         {/* Modal Search Bar */}
         {cases.length > 0 && (
-          <div className="px-6 py-2.5 bg-[#081225]/40 border-b border-[#1a56db]/15 flex items-center gap-3">
+          <div className="px-6 py-2.5 bg-slate-50/70 border-b border-slate-200 flex items-center gap-3">
             <div className="relative flex-1">
               <input
                 type="text"
@@ -106,7 +106,7 @@ function FlaggedCasesModal({
                 className="input-field pl-8 pr-7 text-xs w-full py-1.5"
               />
               <svg
-                className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-[#64748b]"
+                className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -116,42 +116,40 @@ function FlaggedCasesModal({
               {modalSearch && (
                 <button
                   onClick={() => setModalSearch('')}
-                  className="absolute right-2.5 top-2 text-[#64748b] hover:text-white text-xs"
-                  title="Clear search"
+                  className="absolute right-2.5 top-2.5 text-xs text-slate-400 hover:text-slate-700"
                 >
                   ✕
                 </button>
               )}
             </div>
-            <span className="text-[11px] text-[#64748b] whitespace-nowrap">
-              Showing <strong className="text-white">{filteredCases.length}</strong> of <strong className="text-white">{cases.length}</strong>
-            </span>
+            {modalSearch && (
+              <span className="text-[11px] text-slate-500 whitespace-nowrap">
+                {filteredCases.length} of {cases.length}
+              </span>
+            )}
           </div>
         )}
 
-        {/* Content */}
-        <div className="p-5 max-h-[70vh] overflow-y-auto space-y-3">
+        {/* List */}
+        <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3">
           {loading ? (
-            <div className="py-16 flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 border-2 border-[#ef4444]/30 border-t-[#ef4444] rounded-full animate-spin" />
-              <p className="text-xs text-[#64748b]">Loading flagged cases...</p>
-            </div>
+            <div className="py-12 text-center text-xs text-slate-500">Loading cases...</div>
           ) : cases.length === 0 ? (
-            <div className="py-16 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-[#10b981]/10 flex items-center justify-center mx-auto text-[#10b981]">
+            <div className="py-12 text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-sm font-semibold text-white">No flagged cases</p>
-              <p className="text-xs text-[#64748b]">All cases for this rooftop are currently clear.</p>
+              <p className="text-sm font-semibold text-slate-900">No flagged cases</p>
+              <p className="text-xs text-slate-500">All cases for this rooftop are currently clear.</p>
             </div>
           ) : filteredCases.length === 0 ? (
             <div className="py-12 text-center space-y-2">
-              <p className="text-xs font-semibold text-white">No flagged cases match "{modalSearch}"</p>
+              <p className="text-xs font-semibold text-slate-900">No flagged cases match "{modalSearch}"</p>
               <button
                 onClick={() => setModalSearch('')}
-                className="text-xs text-[#00f0ff] hover:underline font-semibold"
+                className="text-xs text-[#E11F26] hover:underline font-semibold"
               >
                 Clear search filter
               </button>
@@ -163,72 +161,72 @@ function FlaggedCasesModal({
               const make = c.make || c.vehicle?.make || '';
               const year = c.year || c.vehicle?.year || '';
               const powertrain = c.powertrain || c.vehicle?.powertrain || '';
-              const concernTitle = c.concernTitle || c.concern?.title || '';
+              const concernTitle = c.concernTitle || c.concern?.title || 'Warranty Claim';
               const activeFlags = (c.flagHistory || c.flags || []).filter((f: any) => !f.resolvedAt);
-              const latestFlag = activeFlags.length > 0 ? activeFlags[activeFlags.length - 1] : null;
+              const latestFlag = activeFlags[activeFlags.length - 1];
 
               return (
                 <div
                   key={c.id}
-                  className="rounded-xl border border-[#ef4444]/20 bg-gradient-to-r from-[#1c080e]/60 via-[#0d1b3e] to-[#0d1b3e] p-4 hover:border-[#ef4444]/40 transition-all group"
+                  className="rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300 hover:shadow-sm transition-all group"
                 >
                   {/* Top row: RO + Vehicle + Badges */}
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-black text-white">{c.roNumber}</span>
+                        <span className="text-sm font-black text-slate-900">{c.roNumber}</span>
                         {c.claimNumber && (
-                          <span className="text-[10px] font-mono text-[#64748b]">{c.claimNumber}</span>
+                          <span className="text-[10px] font-mono text-slate-500">{c.claimNumber}</span>
                         )}
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-[#ef4444]/20 text-[#ef4444] border border-[#ef4444]/30">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-red-50 text-[#E11F26] border border-red-200">
                           Flagged
                         </span>
                         {powertrain && (
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
                             powertrain === 'EV'
-                              ? 'bg-[#10b981]/20 text-[#10b981] border border-[#10b981]/30'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : powertrain === 'Hybrid' || powertrain === 'PHEV'
-                              ? 'bg-[#f59e0b]/20 text-[#f59e0b] border border-[#f59e0b]/30'
-                              : 'bg-[#64748b]/20 text-[#cbd5e1] border border-[#64748b]/30'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
                           }`}>
                             {powertrain}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#cbd5e1]/80 mt-1 truncate">
+                      <p className="text-xs text-slate-700 font-medium mt-1 truncate">
                         {year} {make} {model}
-                        {vin && <span className="text-[#64748b] ml-2 font-mono text-[10px]">VIN: {vin.slice(-8)}</span>}
+                        {vin && <span className="text-slate-400 ml-2 font-mono text-[10px]">VIN: {vin.slice(-8)}</span>}
                       </p>
-                      <p className="text-[11px] text-[#cbd5e1]/60 mt-0.5 truncate" title={concernTitle}>
+                      <p className="text-[11px] text-slate-500 mt-0.5 truncate" title={concernTitle}>
                         {concernTitle}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-[10px] text-[#64748b]">{c.technicianName}</p>
-                      <p className="text-[10px] text-[#64748b]">{c.brandName}</p>
+                      <p className="text-[10px] font-medium text-slate-600">{c.technicianName}</p>
+                      <p className="text-[10px] text-slate-400">{c.brandName}</p>
                     </div>
                   </div>
 
                   {/* Flag Alert */}
                   {latestFlag && (
-                    <div className="rounded-lg bg-[#ef4444]/8 border border-[#ef4444]/20 p-3 mb-3">
+                    <div className="rounded-lg bg-red-50 border border-red-200 p-3 mb-3">
                       <div className="flex items-start gap-2">
-                        <svg className="w-3.5 h-3.5 text-[#ef4444] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5 text-[#E11F26] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[11px] font-bold text-[#ef4444]">
+                            <span className="text-[11px] font-bold text-[#E11F26]">
                               {FLAG_REASON_LABELS[latestFlag.reasonCode] || latestFlag.reasonCode}
                             </span>
-                            <span className="text-[9px] text-[#64748b] font-mono">
+                            <span className="text-[9px] text-slate-500 font-mono">
                               Gate: {latestFlag.evidenceRuleKey}
                             </span>
                           </div>
-                          <p className="text-[10px] text-[#cbd5e1]/70 mt-1 leading-relaxed">
+                          <p className="text-[10px] text-slate-700 mt-1 leading-relaxed">
                             {latestFlag.instruction}
                           </p>
-                          <p className="text-[9px] text-[#64748b] mt-1">
+                          <p className="text-[9px] text-slate-500 mt-1">
                             Flagged by {latestFlag.flaggedBy} · {new Date(latestFlag.flaggedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}
                           </p>
                         </div>
@@ -240,7 +238,7 @@ function FlaggedCasesModal({
                   <div className="flex items-center justify-end">
                     <Link
                       href={`/cases/${c.id}`}
-                      className="px-3 py-1.5 rounded-lg bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#ef4444] text-[11px] font-bold hover:bg-[#ef4444]/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-[#E11F26] text-[11px] font-bold hover:bg-[#E11F26] hover:text-white transition-all flex items-center gap-1.5"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -256,13 +254,13 @@ function FlaggedCasesModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-[#1a56db]/20 bg-[#081225]/40 flex items-center justify-between">
-          <span className="text-[11px] text-[#64748b]">
+        <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <span className="text-[11px] text-slate-500">
             {cases.length} flagged case{cases.length !== 1 ? 's' : ''}
           </span>
           <Link
             href={siteId ? `/cases?siteId=${siteId}&flaggedOnly=true` : '/cases?flaggedOnly=true'}
-            className="text-[11px] font-bold text-[#00f0ff] hover:underline flex items-center gap-1"
+            className="text-[11px] font-bold text-[#E11F26] hover:text-[#c81a20] hover:underline flex items-center gap-1"
             onClick={onClose}
           >
             View all in Cases CRM →
@@ -340,24 +338,24 @@ export default function DashboardPage() {
 
       <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
         {/* OEM Standards & Rules Quick Action Banner */}
-        <div className="p-4 rounded-2xl bg-[#081225] border border-[#1a56db]/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
+        <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#1a56db]/30 to-[#00f0ff]/20 border border-[#00f0ff]/40 flex items-center justify-center text-[#00f0ff] shrink-0 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+            <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26] shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm font-bold text-white">OEM Evidence Standards & Rules Engine</h3>
-                <span className="px-2 py-0.5 rounded-full bg-[#10b981]/20 text-[#10b981] text-[10px] font-mono font-bold border border-[#10b981]/30">
+                <h3 className="text-sm font-bold text-slate-900">OEM Evidence Standards & Rules Engine</h3>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-mono font-bold border border-emerald-200">
                   {brandPacks.length} Active Packs
                 </span>
-                <span className="text-[11px] text-[#64748b] font-mono">
+                <span className="text-[11px] text-slate-500 font-mono">
                   ({brandPacks.reduce((acc, p) => acc + (p.rules?.length || 0), 0)} Total Gates)
                 </span>
               </div>
-              <p className="text-xs text-[#cbd5e1]/70 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Add required photo/video gates for technicians or bulk import warranty checklist guidelines from CSV/Excel.
               </p>
             </div>
@@ -369,7 +367,7 @@ export default function DashboardPage() {
                 setRuleModalMode('MANUAL');
                 setRuleModalOpen(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#1a56db] to-[#00f0ff]/80 hover:from-[#1a56db]/90 hover:to-[#00f0ff] text-white font-bold text-xs shadow-[0_0_15px_rgba(26,86,219,0.4)] flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-lg bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <span>➕ Add Brand Rule</span>
             </button>
@@ -378,13 +376,13 @@ export default function DashboardPage() {
                 setRuleModalMode('IMPORT');
                 setRuleModalOpen(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-[#0d1b3e] hover:bg-[#132952] text-[#00f0ff] border border-[#00f0ff]/30 font-bold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-[#E11F26] font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <span>📁 Upload CSV / Excel</span>
             </button>
             <Link
               href="/brand-packs"
-              className="px-3 py-2 rounded-xl bg-[#081225] hover:bg-[#132952] text-[#cbd5e1] border border-[#1a56db]/20 text-xs font-semibold flex items-center gap-1 transition-all"
+              className="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-slate-400 text-xs font-semibold flex items-center gap-1 transition-all"
             >
               <span>Rules CRM</span>
               <span>➔</span>
@@ -475,19 +473,22 @@ export default function DashboardPage() {
         {/* Middle Section: Site Performance + Top Flag Reasons */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sites Performance Table */}
-          <div className="lg:col-span-2 glass-card-static p-6 border border-[#1a56db]/20 flex flex-col justify-between">
+          <div className="lg:col-span-2 glass-card-static p-6 border border-slate-200 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-base font-bold text-white tracking-tight">Dealership Rooftop Velocity & Quality</h3>
-                  <p className="text-xs text-[#cbd5e1]/70">Pass rates before clerk submission</p>
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">Dealership Rooftop Velocity & Quality</h3>
+                  <p className="text-xs text-slate-500">Pass rates before clerk submission</p>
                 </div>
-                <span className="text-xs text-[#00f0ff] font-semibold">Live Feed</span>
+                <span className="text-xs text-[#E11F26] font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#E11F26] animate-ping" />
+                  Live Feed
+                </span>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-[#cbd5e1]">
-                  <thead className="border-b border-[#1a56db]/20 text-[#64748b] uppercase tracking-wider font-semibold">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold bg-slate-50">
                     <tr>
                       <th className="py-3 px-3">Site Rooftop</th>
                       <th className="py-3 px-3 text-center">Cases</th>
@@ -496,34 +497,34 @@ export default function DashboardPage() {
                       <th className="py-3 px-3 text-right">Avg Velocity</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#1a56db]/10">
+                  <tbody className="divide-y divide-slate-100">
                     {sites.map((site) => (
-                      <tr key={site.siteId} className="hover:bg-[#132952]/40 transition-colors">
-                        <td className="py-3 px-3 font-semibold text-white">
+                      <tr key={site.siteId} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-3 font-bold text-slate-900">
                           {site.siteName}
                         </td>
-                        <td className="py-3 px-3 text-center font-bold text-[#00f0ff]">
+                        <td className="py-3.5 px-3 text-center font-bold text-slate-900">
                           {site.totalCases}
                         </td>
-                        <td className="py-3 px-3 text-center">
-                          <span className="inline-flex items-center gap-1 font-bold text-[#10b981]">
+                        <td className="py-3.5 px-3 text-center">
+                          <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
                             {site.firstTimePassRate}%
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-3.5 px-3 text-center">
                           {site.flaggedCount > 0 ? (
                             <button
                               onClick={() => openFlaggedModal(site.siteId, site.siteName)}
-                              className="px-2.5 py-0.5 rounded-full bg-[#ef4444]/20 text-[#ef4444] font-bold cursor-pointer hover:bg-[#ef4444]/30 hover:shadow-[0_0_12px_rgba(239,68,68,0.35)] transition-all duration-200 border border-transparent hover:border-[#ef4444]/40"
+                              className="px-2.5 py-0.5 rounded-full bg-red-50 text-[#E11F26] font-bold cursor-pointer hover:bg-red-100 transition-all border border-red-200"
                               title={`View ${site.flaggedCount} flagged cases for ${site.siteName}`}
                             >
                               {site.flaggedCount}
                             </button>
                           ) : (
-                            <span className="text-[#64748b]">0</span>
+                            <span className="text-slate-400">0</span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-right font-mono font-medium text-white">
+                        <td className="py-3.5 px-3 text-right font-mono font-semibold text-slate-800">
                           {site.avgHoursToSubmit}h
                         </td>
                       </tr>
@@ -532,23 +533,23 @@ export default function DashboardPage() {
                 </table>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-[#1a56db]/10 flex items-center justify-between text-xs text-[#64748b]">
-              <span>Group Average Pass Rate: <strong className="text-white">92.8%</strong></span>
-              <Link href="/sites" className="text-[#00f0ff] hover:underline font-semibold">
+            <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <span>Group Average Pass Rate: <strong className="text-slate-900">92.8%</strong></span>
+              <Link href="/sites" className="text-[#E11F26] hover:underline font-bold">
                 Manage Rooftops →
               </Link>
             </div>
           </div>
 
           {/* Top Failure / Retake Reasons */}
-          <div className="glass-card-static p-6 border border-[#1a56db]/20 flex flex-col justify-between">
+          <div className="glass-card-static p-6 border border-slate-200 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-base font-bold text-white tracking-tight">Top Flagged Issues</h3>
-                  <p className="text-xs text-[#cbd5e1]/70">Technician training insights</p>
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">Top Flagged Issues</h3>
+                  <p className="text-xs text-slate-500">Technician training insights</p>
                 </div>
-                <span className="w-2 h-2 rounded-full bg-[#ef4444]" />
+                <span className="w-2 h-2 rounded-full bg-[#E11F26]" />
               </div>
 
               <div className="space-y-4">
@@ -557,49 +558,49 @@ export default function DashboardPage() {
                   return (
                     <div key={reason.reasonCode} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-[#cbd5e1] truncate max-w-[200px]" title={reason.label}>
+                        <span className="font-semibold text-slate-800 truncate max-w-[200px]" title={reason.label}>
                           {reason.label}
                         </span>
-                        <span className="font-bold text-[#ef4444] font-mono">{pct}%</span>
+                        <span className="font-bold text-[#E11F26] font-mono">{pct}%</span>
                       </div>
-                      <div className="h-2 w-full bg-[#081225] rounded-full overflow-hidden border border-[#1a56db]/20">
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                         <div
-                          className="h-full bg-gradient-to-r from-[#ef4444] to-[#f59e0b] rounded-full"
+                          className="h-full bg-[#E11F26] rounded-full"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-[#64748b] text-right">{reason.count} occurrences</p>
+                      <p className="text-[10px] text-slate-500 text-right">{reason.count} occurrences</p>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="mt-6 p-3 rounded-xl bg-[#1a56db]/10 border border-[#1a56db]/20 text-[11px] text-[#cbd5e1]">
-              <strong className="text-[#00f0ff] block mb-0.5">Automated Gate Prevention:</strong>
+            <div className="mt-6 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+              <strong className="text-slate-900 block mb-0.5">Automated Gate Prevention:</strong>
               Mobile camera AI validation reduces blurry VIN & odometer submissions before repair begins.
             </div>
           </div>
         </div>
 
         {/* Quick Review Portal Banner */}
-        <div className="glass-card p-6 border border-[#1a56db]/30 flex flex-col md:flex-row items-center justify-between gap-6 bg-gradient-to-r from-[#0d1b3e] via-[#132952] to-[#0d1b3e]">
+        <div className="glass-card p-6 border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6 bg-white shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#00f0ff]/10 border border-[#00f0ff]/30 flex items-center justify-center text-[#00f0ff]">
+            <div className="w-12 h-12 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
             </div>
             <div>
-              <h4 className="text-base font-bold text-white">Warranty Clerk Review Queue</h4>
-              <p className="text-xs text-[#cbd5e1]/80 mt-0.5">
+              <h4 className="text-base font-bold text-slate-900">Warranty Clerk Review Queue</h4>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Review pending workshop cases, audit BYD Attachment A checklist gates, and export OEM ZIP packs.
               </p>
             </div>
           </div>
           <Link
             href="/cases"
-            className="btn-primary text-xs py-2.5 px-6 whitespace-nowrap shadow-[0_0_20px_rgba(26,86,219,0.5)]"
+            className="btn-primary text-xs py-2.5 px-6 whitespace-nowrap shadow-sm"
           >
             Open Live Cases Queue →
           </Link>

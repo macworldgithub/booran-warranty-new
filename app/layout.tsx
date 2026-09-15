@@ -23,9 +23,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} dark`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body
-        className="min-h-screen bg-[#081225] text-[#cbd5e1] antialiased selection:bg-[#00f0ff]/20 selection:text-white"
+        className="min-h-screen bg-[#f8fafc] text-[#0f172a] antialiased selection:bg-[#E11F26] selection:text-white"
         suppressHydrationWarning
       >
         {children}

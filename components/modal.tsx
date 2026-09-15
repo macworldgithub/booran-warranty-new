@@ -32,14 +32,14 @@ export function Modal({
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className={`w-full ${maxW} bg-[#0d1b3e] border border-[#1a56db]/30 rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden animate-scaleIn`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+      <div className={`w-full ${maxW} bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleIn`}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#1a56db]/20 flex items-center justify-between bg-[#081225]/60">
-          <h3 className="text-base font-bold text-white tracking-tight">{title}</h3>
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+          <h3 className="text-base font-bold text-slate-900 tracking-tight">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#64748b] hover:text-white hover:bg-[#132952] transition-colors"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -48,13 +48,13 @@ export function Modal({
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[75vh] overflow-y-auto text-sm text-[#cbd5e1] space-y-4">
+        <div className="p-6 max-h-[75vh] overflow-y-auto text-sm text-slate-700 space-y-4">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-[#1a56db]/20 bg-[#081225]/40 flex items-center justify-end gap-3">
+          <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}

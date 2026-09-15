@@ -8,13 +8,13 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
   const styles: Record<CaseStatus, string> = {
-    'Draft': 'bg-[#64748b]/20 text-[#cbd5e1] border-[#64748b]/30',
-    'Uploading': 'bg-[#1a56db]/20 text-[#00f0ff] border-[#1a56db]/40 animate-pulse',
-    'Awaiting Review': 'bg-[#f59e0b]/20 text-[#f59e0b] border-[#f59e0b]/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]',
-    'Flagged': 'bg-[#ef4444]/20 text-[#ef4444] border-[#ef4444]/40 shadow-[0_0_10px_rgba(239,68,68,0.2)] font-bold',
-    'Submitted': 'bg-[#10b981]/20 text-[#10b981] border-[#10b981]/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]',
-    'Closed': 'bg-[#64748b]/20 text-[#64748b] border-[#64748b]/30',
-    'Withdrawn': 'bg-[#ef4444]/10 text-[#64748b] border-transparent',
+    'Draft': 'bg-slate-100 text-slate-700 border-slate-300',
+    'Uploading': 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse',
+    'Awaiting Review': 'bg-amber-50 text-amber-800 border-amber-300 font-semibold',
+    'Flagged': 'bg-red-50 text-[#E11F26] border-red-300 font-bold',
+    'Submitted': 'bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold',
+    'Closed': 'bg-slate-100 text-slate-600 border-slate-200',
+    'Withdrawn': 'bg-slate-50 text-slate-500 border-slate-200',
   };
 
   const px = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs';

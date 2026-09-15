@@ -102,34 +102,41 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#081225] text-white flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      {/* Ambient Lighting Spheres */}
-      <div className="absolute top-[-15%] left-[20%] w-[600px] h-[600px] rounded-full bg-[#1a56db]/15 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[20%] w-[500px] h-[500px] rounded-full bg-[#00f0ff]/10 blur-[130px] pointer-events-none" />
-      <div className="absolute top-[40%] right-[10%] w-[350px] h-[350px] rounded-full bg-[#f59e0b]/10 blur-[100px] pointer-events-none" />
+    <div className="min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Subtle Ambient Red Glow */}
+      <div className="absolute top-[-10%] left-[25%] w-[500px] h-[500px] rounded-full bg-[#E11F26]/6 blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[25%] w-[400px] h-[400px] rounded-full bg-[#E11F26]/5 blur-[120px] pointer-events-none" />
 
       {/* Main Container */}
       <div className="w-full max-w-lg z-10">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a56db]/20 border border-[#00f0ff]/30 text-[#00f0ff] text-xs font-semibold uppercase tracking-widest mb-3">
-            <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-ping" />
-            OMNISUITE AI · AFTERSALES MODULE
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-50 border border-red-200 text-[#E11F26] text-xs font-bold uppercase tracking-widest mb-4">
+            <span className="w-2 h-2 rounded-full bg-[#E11F26] animate-ping" />
+            BOORAN MOTOR GROUP · AFTERSALES
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-2">
-            <span className="bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
-              Booran Motor Group
-            </span>
+          <div className="flex justify-center mb-3">
+            <img
+              src="/booran-motors-official.png"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/booran-logo.png';
+              }}
+              alt="Booran Motors"
+              className="h-14 sm:h-16 w-auto object-contain"
+            />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center gap-2">
+            <span>Warranty Evidence & Review Portal</span>
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            Multi-Brand Warranty Evidence Capture & Review Platform
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Since 1965 · Multi-Brand Workshop Evidence & Audit Review
           </p>
         </div>
 
-        {/* Glass Card */}
-        <div className="bg-[#0d1b3e]/85 backdrop-blur-2xl border border-[#1a56db]/30 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-6 sm:p-8">
+        {/* Card */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.06)] p-6 sm:p-8">
           {/* Tab Switcher: Sign In vs Create Account */}
-          <div className="flex bg-[#081225]/80 p-1 rounded-xl border border-[#1a56db]/20 mb-6">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-6">
             <button
               type="button"
               onClick={() => {
@@ -137,10 +144,10 @@ export default function LoginPage() {
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 authMode === 'signin'
-                  ? 'bg-gradient-to-r from-[#1a56db] to-[#1e40af] text-white shadow-md'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-white text-[#E11F26] shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Sign In
@@ -152,10 +159,10 @@ export default function LoginPage() {
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 authMode === 'signup'
-                  ? 'bg-gradient-to-r from-[#1a56db] to-[#1e40af] text-white shadow-md'
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-white text-[#E11F26] shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Create Account
@@ -165,7 +172,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Role Selection (Radio Buttons) */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 Select Account Role
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -174,28 +181,28 @@ export default function LoginPage() {
                   onClick={() => handleRoleChange('ADMIN')}
                   className={`relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
                     selectedRole === 'ADMIN'
-                      ? 'bg-[#1a56db]/20 border-[#00f0ff] shadow-[0_0_15px_rgba(0,240,255,0.25)]'
-                      : 'bg-[#081225]/60 border-gray-700/60 hover:border-gray-600 opacity-75'
+                      ? 'bg-red-50/70 border-[#E11F26] shadow-sm'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'ADMIN' ? 'bg-[#00f0ff]/20 text-[#00f0ff]' : 'bg-gray-800 text-gray-400'
+                        selectedRole === 'ADMIN' ? 'bg-red-100 text-[#E11F26]' : 'bg-slate-200 text-slate-600'
                       }`}>
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg>
                       </div>
-                      <span className="font-bold text-sm text-white">Admin / Clerk</span>
+                      <span className="font-bold text-sm text-slate-900">Admin / Clerk</span>
                     </div>
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      selectedRole === 'ADMIN' ? 'border-[#00f0ff] bg-[#00f0ff]' : 'border-gray-600'
+                      selectedRole === 'ADMIN' ? 'border-[#E11F26] bg-[#E11F26]' : 'border-slate-400'
                     }`}>
-                      {selectedRole === 'ADMIN' && <div className="w-1.5 h-1.5 rounded-full bg-[#081225]" />}
+                      {selectedRole === 'ADMIN' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
-                  <p className="text-[11px] text-gray-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 leading-tight">
                     Portal audit, claims approval, rules engine & KPIs
                   </p>
                 </label>
@@ -205,28 +212,28 @@ export default function LoginPage() {
                   onClick={() => handleRoleChange('TECHNICIAN')}
                   className={`relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
                     selectedRole === 'TECHNICIAN'
-                      ? 'bg-[#1a56db]/20 border-[#00f0ff] shadow-[0_0_15px_rgba(0,240,255,0.25)]'
-                      : 'bg-[#081225]/60 border-gray-700/60 hover:border-gray-600 opacity-75'
+                      ? 'bg-red-50/70 border-[#E11F26] shadow-sm'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'TECHNICIAN' ? 'bg-[#00f0ff]/20 text-[#00f0ff]' : 'bg-gray-800 text-gray-400'
+                        selectedRole === 'TECHNICIAN' ? 'bg-red-100 text-[#E11F26]' : 'bg-slate-200 text-slate-600'
                       }`}>
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <span className="font-bold text-sm text-white">Technician</span>
+                      <span className="font-bold text-sm text-slate-900">Technician</span>
                     </div>
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      selectedRole === 'TECHNICIAN' ? 'border-[#00f0ff] bg-[#00f0ff]' : 'border-gray-600'
+                      selectedRole === 'TECHNICIAN' ? 'border-[#E11F26] bg-[#E11F26]' : 'border-slate-400'
                     }`}>
-                      {selectedRole === 'TECHNICIAN' && <div className="w-1.5 h-1.5 rounded-full bg-[#081225]" />}
+                      {selectedRole === 'TECHNICIAN' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
-                  <p className="text-[11px] text-gray-400 leading-tight">
+                  <p className="text-[11px] text-slate-500 leading-tight">
                     Guided RO capture, Voice-to-Tech & VIN OCR scanner
                   </p>
                 </label>
@@ -236,7 +243,7 @@ export default function LoginPage() {
             {/* Sign Up: Full Name */}
             {authMode === 'signup' && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                   Full Name
                 </label>
                 <div className="relative">
@@ -246,9 +253,9 @@ export default function LoginPage() {
                     placeholder={selectedRole === 'ADMIN' ? 'e.g. Marcus Vance' : 'e.g. Jake Smith'}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-[#081225] border border-[#1a56db]/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-all"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
                   />
-                  <div className="absolute right-3 top-2.5 text-gray-500">
+                  <div className="absolute right-3 top-2.5 text-slate-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
@@ -259,7 +266,7 @@ export default function LoginPage() {
 
             {/* Email Address */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                 Work Email Address
               </label>
               <div className="relative">
@@ -271,9 +278,9 @@ export default function LoginPage() {
                   }
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#081225] border border-[#1a56db]/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-all"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
                 />
-                <div className="absolute right-3 top-2.5 text-gray-500">
+                <div className="absolute right-3 top-2.5 text-slate-400">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
@@ -284,13 +291,13 @@ export default function LoginPage() {
             {/* Sign Up: Dealership Rooftop */}
             {authMode === 'signup' && (
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                   Dealership Rooftop
                 </label>
                 <select
                   value={selectedSite}
                   onChange={(e) => setSelectedSite(e.target.value)}
-                  className="w-full bg-[#081225] border border-[#1a56db]/30 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-all"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
                 >
                   <option value="site_cranbourne_byd">Booran BYD Cranbourne</option>
                   <option value="site_dandenong_multi">Booran Dandenong Multi-Franchise</option>
@@ -303,11 +310,11 @@ export default function LoginPage() {
             {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
                   Password
                 </label>
                 {authMode === 'signin' && (
-                  <span className="text-[11px] text-[#00f0ff]/80 hover:underline cursor-pointer">
+                  <span className="text-[11px] text-[#E11F26] hover:underline cursor-pointer font-semibold">
                     Default: Booran2026!
                   </span>
                 )}
@@ -319,12 +326,12 @@ export default function LoginPage() {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#081225] border border-[#1a56db]/30 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#00f0ff] focus:ring-1 focus:ring-[#00f0ff] transition-all"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-300"
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   {showPassword ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,8 +349,8 @@ export default function LoginPage() {
 
             {/* Error Message */}
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-red-900/30 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
-                <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>{errorMsg}</span>
@@ -352,8 +359,8 @@ export default function LoginPage() {
 
             {/* Success Message */}
             {successMsg && (
-              <div className="p-3 rounded-xl bg-emerald-900/30 border border-emerald-500/50 text-emerald-200 text-xs flex items-center gap-2">
-                <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+                <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                 </svg>
                 <span>{successMsg}</span>
@@ -364,7 +371,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#1a56db] via-[#2563eb] to-[#00f0ff] hover:from-[#1e40af] hover:to-[#00c8db] shadow-[0_0_20px_rgba(0,240,255,0.35)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white bg-[#E11F26] hover:bg-[#c81a20] shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -386,9 +393,9 @@ export default function LoginPage() {
           </form>
 
           {/* Attachment A Compliance Badge Footer */}
-          <div className="mt-6 pt-4 border-t border-[#1a56db]/20 flex items-center justify-between text-[11px] text-gray-400">
+          <div className="mt-6 pt-4 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span>BYD-WB-2602-02 Active</span>
             </div>
             <span>v1.0 · Multi-Brand Engine</span>

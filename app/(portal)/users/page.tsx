@@ -57,7 +57,7 @@ export default function UsersPage() {
 
       <div className="p-8 max-w-7xl mx-auto w-full space-y-6">
         {/* Search & Filter Bar */}
-        <div className="glass-card-static p-4 border border-[#1a56db]/20 flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
           <div className="relative flex-1 min-w-[280px]">
             <input
               type="text"
@@ -67,7 +67,7 @@ export default function UsersPage() {
               className="input-field pl-9 pr-8 text-xs w-full"
             />
             <svg
-              className="w-4 h-4 absolute left-3 top-3 text-[#64748b]"
+              className="w-4 h-4 absolute left-3 top-3 text-slate-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -82,7 +82,7 @@ export default function UsersPage() {
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-2.5 text-[#64748b] hover:text-white text-sm"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm"
                 title="Clear search"
               >
                 ✕
@@ -105,16 +105,16 @@ export default function UsersPage() {
                 <button
                   key={rf.id}
                   onClick={() => setRoleFilter(rf.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                     isSelected
-                      ? 'bg-[#1a56db] text-white shadow-[0_0_10px_rgba(26,86,219,0.5)]'
-                      : 'bg-[#081225]/80 text-[#94a3b8] hover:text-white border border-[#1a56db]/20'
+                      ? 'bg-[#E11F26] text-white shadow-xs font-bold'
+                      : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-300'
                   }`}
                 >
                   <span>{rf.label}</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-[#132952] text-[#64748b]'
+                      isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
                     }`}
                   >
                     {count}
@@ -126,10 +126,10 @@ export default function UsersPage() {
         </div>
 
         {/* Results Info Bar */}
-        <div className="flex items-center justify-between text-xs text-[#64748b] px-1">
+        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
           <span>
-            Showing <strong className="text-white">{filteredUsers.length}</strong> of{' '}
-            <strong className="text-white">{users.length}</strong> users
+            Showing <strong className="text-slate-900">{filteredUsers.length}</strong> of{' '}
+            <strong className="text-slate-900">{users.length}</strong> users
           </span>
           {(searchQuery || roleFilter !== 'ALL') && (
             <button
@@ -137,7 +137,7 @@ export default function UsersPage() {
                 setSearchQuery('');
                 setRoleFilter('ALL');
               }}
-              className="text-[#00f0ff] hover:underline font-semibold"
+              className="text-[#E11F26] hover:underline font-semibold"
             >
               Reset Filters
             </button>
@@ -145,9 +145,9 @@ export default function UsersPage() {
         </div>
 
         {/* Table Container */}
-        <div className="glass-card-static border border-[#1a56db]/20 overflow-hidden shadow-2xl">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#081225]/80 border-b border-[#1a56db]/20 text-[#64748b] uppercase tracking-wider font-semibold">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-semibold">
               <tr>
                 <th className="py-3.5 px-4">User</th>
                 <th className="py-3.5 px-4">Email</th>
@@ -156,10 +156,10 @@ export default function UsersPage() {
                 <th className="py-3.5 px-4 text-right">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1a56db]/10">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-[#64748b]">
+                  <td colSpan={5} className="py-12 text-center text-slate-500">
                     Loading user access directory...
                   </td>
                 </tr>
@@ -167,7 +167,7 @@ export default function UsersPage() {
                 <tr>
                   <td colSpan={5} className="py-16 text-center">
                     <div className="max-w-xs mx-auto space-y-2">
-                      <div className="w-10 h-10 rounded-full bg-[#1a56db]/10 flex items-center justify-center mx-auto text-[#00f0ff]">
+                      <div className="w-10 h-10 rounded-full bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center mx-auto">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
@@ -177,8 +177,8 @@ export default function UsersPage() {
                           />
                         </svg>
                       </div>
-                      <p className="text-sm font-semibold text-white">No users matched your search</p>
-                      <p className="text-xs text-[#64748b]">
+                      <p className="text-sm font-semibold text-slate-900">No users matched your search</p>
+                      <p className="text-xs text-slate-500">
                         Try adjusting your keywords or clearing the role filter.
                       </p>
                     </div>
@@ -186,17 +186,17 @@ export default function UsersPage() {
                 </tr>
               ) : (
                 filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#132952]/40 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-white">{u.name}</td>
-                    <td className="py-3.5 px-4 text-[#cbd5e1] font-mono">{u.email}</td>
+                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-slate-900">{u.name}</td>
+                    <td className="py-3.5 px-4 text-slate-700 font-mono">{u.email}</td>
                     <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded bg-[#1a56db]/20 text-[#00f0ff] font-semibold">
+                      <span className="px-2 py-0.5 rounded border border-slate-300 text-slate-800 bg-white font-mono font-medium text-[11px]">
                         {u.role.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-[#cbd5e1]">{u.defaultSiteId}</td>
+                    <td className="py-3.5 px-4 text-slate-600 font-mono">{u.defaultSiteId}</td>
                     <td className="py-3.5 px-4 text-right">
-                      <span className="px-2 py-0.5 rounded-full bg-[#10b981]/20 text-[#10b981] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
                         Active
                       </span>
                     </td>

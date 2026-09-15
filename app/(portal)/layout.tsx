@@ -35,10 +35,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#081225] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-2 border-[#00f0ff]/20 border-t-[#00f0ff] rounded-full animate-spin shadow-[0_0_15px_rgba(0,240,255,0.4)]" />
-          <span className="text-xs text-[#00f0ff] font-semibold tracking-wider uppercase">Verifying Authorization...</span>
+          <div className="w-10 h-10 border-2 border-[#E11F26]/20 border-t-[#E11F26] rounded-full animate-spin" />
+          <span className="text-xs text-slate-700 font-bold tracking-wider uppercase">Verifying Authorization...</span>
         </div>
       </div>
     );
@@ -46,7 +46,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   return (
     <ToastProvider>
-      <div className="flex min-h-screen bg-[#081225] text-[#cbd5e1]">
+      <div className="flex min-h-screen bg-[#f8fafc] text-slate-900">
         <Sidebar
           userRole={user?.role}
           userName={user?.name}

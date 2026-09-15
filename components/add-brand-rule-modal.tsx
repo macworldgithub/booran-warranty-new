@@ -352,18 +352,18 @@ export function AddBrandRuleModal({
     >
       <div className="space-y-5">
         {/* Top Control Bar: Brand Pack Selector + Mode Switcher */}
-        <div className="p-4 rounded-xl bg-[#081225] border border-[#1a56db]/25 space-y-3">
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-[#64748b]">
-                Target Brand Pack:
+              <label className="text-slate-800 font-bold block mb-1">
+                Target OEM Brand Pack:
               </label>
               <div className="flex items-center gap-2">
                 <select
                   value={selectedPackId}
                   onChange={(e) => setSelectedPackId(e.target.value)}
                   disabled={loadingPacks}
-                  className="bg-[#0d1b3e] border border-[#1a56db]/40 rounded-lg px-3 py-1.5 text-xs text-white font-semibold focus:outline-none focus:border-[#00f0ff] min-w-[260px]"
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-semibold focus:outline-none focus:border-[#E11F26] min-w-[260px] shadow-xs"
                 >
                   {packs.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -372,7 +372,7 @@ export function AddBrandRuleModal({
                   ))}
                 </select>
                 {selectedPack && (
-                  <span className="px-2 py-0.5 rounded bg-[#00f0ff]/10 text-[#00f0ff] text-[10px] font-mono font-bold border border-[#00f0ff]/30">
+                  <span className="px-2 py-0.5 rounded bg-red-50 text-[#E11F26] text-[10px] font-mono font-bold border border-red-200">
                     {selectedPack.rules?.length || 0} Current Rules
                   </span>
                 )}
@@ -380,14 +380,14 @@ export function AddBrandRuleModal({
             </div>
 
             {/* Mode Switcher Tabs */}
-            <div className="flex rounded-lg bg-[#0d1b3e] p-1 border border-[#1a56db]/30 self-start sm:self-center">
+            <div className="flex rounded-lg bg-slate-200/70 p-1 border border-slate-300 self-start sm:self-center">
               <button
                 type="button"
                 onClick={() => setMode('MANUAL')}
                 className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   mode === 'MANUAL'
-                    ? 'bg-[#1a56db] text-white shadow-md'
-                    : 'text-[#94a3b8] hover:text-white'
+                    ? 'bg-[#E11F26] text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span>➕ Add Single Rule</span>
@@ -397,8 +397,8 @@ export function AddBrandRuleModal({
                 onClick={() => setMode('IMPORT')}
                 className={`px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   mode === 'IMPORT'
-                    ? 'bg-[#1a56db] text-white shadow-md'
-                    : 'text-[#94a3b8] hover:text-white'
+                    ? 'bg-[#E11F26] text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span>📁 Upload CSV / Excel</span>
@@ -413,9 +413,9 @@ export function AddBrandRuleModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               {/* Rule Name */}
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-white font-bold flex items-center justify-between">
+                <label className="text-slate-800 font-bold flex items-center justify-between">
                   <span>Evidence Rule Name *</span>
-                  <span className="text-[10px] text-[#64748b] font-normal">
+                  <span className="text-[10px] text-slate-500 font-normal">
                     Displayed in technician mobile camera & checklist
                   </span>
                 </label>
@@ -425,20 +425,20 @@ export function AddBrandRuleModal({
                   placeholder="e.g. Inverter Coolant Flow Rate Photo"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#081225] border border-[#1a56db]/30 text-white placeholder-[#64748b] focus:outline-none focus:border-[#00f0ff]"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26]"
                 />
               </div>
 
               {/* Rule Key */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-white font-bold">Rule Identifier Key *</label>
-                  <label className="text-[10px] text-[#00f0ff] flex items-center gap-1 cursor-pointer">
+                  <label className="text-slate-800 font-bold">Rule Identifier Key *</label>
+                  <label className="text-[10px] text-[#E11F26] font-bold flex items-center gap-1 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={autoKey}
                       onChange={(e) => setAutoKey(e.target.checked)}
-                      className="rounded"
+                      className="rounded accent-[#E11F26]"
                     />
                     <span>Auto-slug</span>
                   </label>
@@ -450,23 +450,23 @@ export function AddBrandRuleModal({
                   value={ruleKey}
                   readOnly={autoKey}
                   onChange={(e) => setRuleKey(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-xl bg-[#081225] border border-[#1a56db]/30 font-mono text-xs text-[#00f0ff] focus:outline-none focus:border-[#00f0ff] ${
-                    autoKey ? 'opacity-80' : ''
+                  className={`w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-mono text-xs text-slate-800 focus:outline-none focus:border-[#E11F26] ${
+                    autoKey ? 'bg-slate-50 text-slate-600' : ''
                   }`}
                 />
               </div>
 
               {/* Media Type */}
               <div className="space-y-1.5">
-                <label className="text-white font-bold">Media Type *</label>
+                <label className="text-slate-800 font-bold">Media Type *</label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => handleMediaTypeChange('image')}
                     className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
                       mediaType === 'image'
-                        ? 'bg-[#1a56db]/40 border-[#00f0ff] text-white shadow-[0_0_15px_rgba(0,240,255,0.25)]'
-                        : 'bg-[#081225] border-[#1a56db]/20 text-[#94a3b8] hover:text-white'
+                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
                     📷 Photo
@@ -476,8 +476,8 @@ export function AddBrandRuleModal({
                     onClick={() => handleMediaTypeChange('video')}
                     className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
                       mediaType === 'video'
-                        ? 'bg-[#1a56db]/40 border-[#00f0ff] text-white shadow-[0_0_15px_rgba(0,240,255,0.25)]'
-                        : 'bg-[#081225] border-[#1a56db]/20 text-[#94a3b8] hover:text-white'
+                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
                     📹 Video
@@ -487,8 +487,8 @@ export function AddBrandRuleModal({
                     onClick={() => handleMediaTypeChange('document')}
                     className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
                       mediaType === 'document'
-                        ? 'bg-[#1a56db]/40 border-[#00f0ff] text-white shadow-[0_0_15px_rgba(0,240,255,0.25)]'
-                        : 'bg-[#081225] border-[#1a56db]/20 text-[#94a3b8] hover:text-white'
+                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                     }`}
                   >
                     📄 DTC / PDF
@@ -498,15 +498,15 @@ export function AddBrandRuleModal({
 
               {/* Tier & Mandatory */}
               <div className="space-y-1.5">
-                <label className="text-white font-bold">Evidence Standard Tier</label>
+                <label className="text-slate-800 font-bold">Evidence Standard Tier</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setTier(1)}
                     className={`py-2 px-3 rounded-xl text-center font-bold text-xs border cursor-pointer transition-all ${
                       tier === 1
-                        ? 'bg-[#10b981]/20 border-[#10b981] text-[#10b981]'
-                        : 'bg-[#081225] border-[#1a56db]/20 text-[#64748b]'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                     }`}
                   >
                     Tier 1 Core Standard
@@ -516,8 +516,8 @@ export function AddBrandRuleModal({
                     onClick={() => setTier(2)}
                     className={`py-2 px-3 rounded-xl text-center font-bold text-xs border cursor-pointer transition-all ${
                       tier === 2
-                        ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#f59e0b]'
-                        : 'bg-[#081225] border-[#1a56db]/20 text-[#64748b]'
+                        ? 'bg-amber-50 border-amber-500 text-amber-700'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                     }`}
                   >
                     Tier 2 Defect Specific
@@ -526,26 +526,26 @@ export function AddBrandRuleModal({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-white font-bold">Gate Enforcement</label>
+                <label className="text-slate-800 font-bold">Gate Enforcement</label>
                 <div
                   onClick={() => setIsMandatory(!isMandatory)}
                   className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                     isMandatory
-                      ? 'bg-red-950/20 border-red-500/40 text-red-300'
-                      : 'bg-[#081225] border-[#1a56db]/20 text-[#94a3b8]'
+                      ? 'bg-red-50 border-red-200 text-[#E11F26]'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <div className="space-y-0.5">
                     <p className="font-bold text-xs">
                       {isMandatory ? 'Mandatory Gate (Blocks submission)' : 'Optional Recommendation'}
                     </p>
-                    <p className="text-[10px] text-[#64748b]">
+                    <p className="text-[10px] text-slate-500">
                       {isMandatory ? 'Tech must submit before repair start' : 'Suggested for clerk review'}
                     </p>
                   </div>
                   <div
                     className={`w-5 h-5 rounded flex items-center justify-center font-bold text-xs ${
-                      isMandatory ? 'bg-red-500 text-white' : 'bg-[#132952] text-[#64748b]'
+                      isMandatory ? 'bg-[#E11F26] text-white' : 'bg-slate-100 text-slate-400'
                     }`}
                   >
                     {isMandatory ? '✓' : ''}
@@ -555,14 +555,14 @@ export function AddBrandRuleModal({
 
               {/* Dynamic Trigger */}
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-white font-bold flex items-center justify-between">
+                <label className="text-slate-800 font-bold flex items-center justify-between">
                   <span>Dynamic Trigger Condition</span>
-                  <span className="text-[10px] text-[#94a3b8]">When should this rule appear in mobile wizard?</span>
+                  <span className="text-[10px] text-slate-500">When should this rule appear in mobile wizard?</span>
                 </label>
                 <select
                   value={triggerType}
                   onChange={(e) => setTriggerType(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#081225] border border-[#1a56db]/30 text-white focus:outline-none focus:border-[#00f0ff]"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-[#E11F26]"
                 >
                   <option value="NONE">Universal (Always required for all jobs)</option>
                   <option value="PART_REPLACED">Trigger: Part Replaced (Serial / Part tags)</option>
@@ -574,9 +574,9 @@ export function AddBrandRuleModal({
 
               {/* Target OEM Filename */}
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-white font-bold flex items-center justify-between">
+                <label className="text-slate-800 font-bold flex items-center justify-between">
                   <span>Target OEM ZIP Filename Convention *</span>
-                  <span className="text-[10px] text-[#64748b] font-mono">[DealerRONumber] will be replaced</span>
+                  <span className="text-[10px] text-slate-500 font-mono">[DealerRONumber] will be replaced</span>
                 </label>
                 <input
                   type="text"
@@ -584,25 +584,25 @@ export function AddBrandRuleModal({
                   placeholder="[DealerRONumber]InverterCoolant.jpg"
                   value={namingConvention}
                   onChange={(e) => setNamingConvention(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#081225] border border-[#1a56db]/30 text-white font-mono text-xs focus:outline-none focus:border-[#00f0ff]"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-mono text-xs text-slate-800 focus:outline-none focus:border-[#E11F26]"
                 />
               </div>
 
               {/* Viewfinder Guidance HUD */}
               <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-white font-bold">Mobile Viewfinder HUD Instructions</label>
+                <label className="text-slate-800 font-bold">Mobile Viewfinder HUD Instructions</label>
                 <textarea
                   rows={2}
                   placeholder="e.g. Ensure barcode and stamped numbers fill 70%+ of viewfinder. Avoid glare."
                   value={guidanceText}
                   onChange={(e) => setGuidanceText(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#081225] border border-[#1a56db]/30 text-white placeholder-[#64748b] focus:outline-none focus:border-[#00f0ff]"
+                  className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#E11F26]"
                 />
               </div>
             </div>
 
             {/* Footer Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1a56db]/20">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
               <button
                 type="button"
                 onClick={onClose}
@@ -613,7 +613,7 @@ export function AddBrandRuleModal({
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-primary text-xs py-2 px-6 shadow-[0_0_20px_rgba(26,86,219,0.4)] cursor-pointer flex items-center gap-1.5"
+                className="btn-primary text-xs py-2 px-6 shadow-sm cursor-pointer flex items-center gap-1.5"
               >
                 {submitting ? (
                   <span>Saving Rule...</span>
@@ -632,10 +632,10 @@ export function AddBrandRuleModal({
         {mode === 'IMPORT' && (
           <div className="space-y-4">
             {/* Template Download & Drag-and-Drop Uploader */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-[#081225] border border-[#1a56db]/20 text-xs">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
               <div>
-                <p className="font-bold text-white">Need the correct column format?</p>
-                <p className="text-[#94a3b8] text-[11px]">
+                <p className="font-bold text-slate-900">Need the correct column format?</p>
+                <p className="text-slate-500 text-[11px]">
                   Download our pre-formatted spreadsheet template with sample automotive gates.
                 </p>
               </div>
@@ -643,14 +643,14 @@ export function AddBrandRuleModal({
                 <button
                   type="button"
                   onClick={() => handleDownloadTemplate('xlsx')}
-                  className="px-3 py-1.5 rounded-lg bg-[#10b981]/20 hover:bg-[#10b981]/30 text-[#10b981] font-bold border border-[#10b981]/40 flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-300 flex items-center gap-1.5 cursor-pointer transition-all"
                 >
                   <span>📊 Template (.XLSX)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDownloadTemplate('csv')}
-                  className="px-3 py-1.5 rounded-lg bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/30 flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-[#E11F26] font-bold border border-red-200 flex items-center gap-1.5 cursor-pointer transition-all"
                 >
                   <span>📄 Template (.CSV)</span>
                 </button>
@@ -674,8 +674,8 @@ export function AddBrandRuleModal({
               onClick={() => fileInputRef.current?.click()}
               className={`p-6 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all ${
                 isDragging
-                  ? 'border-[#00f0ff] bg-[#00f0ff]/10'
-                  : 'border-[#1a56db]/40 bg-[#081225]/60 hover:border-[#00f0ff]/60 hover:bg-[#081225]'
+                  ? 'border-[#E11F26] bg-red-50/50'
+                  : 'border-slate-300 bg-slate-50/60 hover:border-[#E11F26] hover:bg-red-50/20'
               }`}
             >
               <input
@@ -689,23 +689,23 @@ export function AddBrandRuleModal({
                   }
                 }}
               />
-              <div className="w-12 h-12 rounded-2xl bg-[#1a56db]/20 border border-[#1a56db]/40 text-[#00f0ff] flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 text-[#E11F26] flex items-center justify-center mx-auto mb-3">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
-              <p className="font-bold text-white text-sm">
+              <p className="font-bold text-slate-900 text-sm">
                 {importFile ? importFile.name : 'Click to Browse or Drag & Drop Spreadsheet'}
               </p>
-              <p className="text-xs text-[#64748b] mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Supports Microsoft Excel (<strong>.xlsx, .xls</strong>) and Comma-Separated Values (<strong>.csv</strong>)
               </p>
             </div>
 
             {/* Error Messages */}
             {parseErrors.length > 0 && (
-              <div className="p-3 rounded-xl bg-red-950/40 border border-red-800/40 text-xs text-red-200 space-y-1">
-                <p className="font-bold text-red-300">Spreadsheet Validation Warnings:</p>
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 space-y-1">
+                <p className="font-bold text-red-900">Spreadsheet Validation Warnings:</p>
                 <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
                   {parseErrors.map((err, i) => (
                     <li key={i}>{err}</li>
@@ -719,11 +719,11 @@ export function AddBrandRuleModal({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-white">Parsed Evidence Gates Preview:</span>
-                    <span className="px-2 py-0.5 rounded bg-[#10b981]/20 text-[#10b981] font-mono font-bold text-[11px] border border-[#10b981]/30">
+                    <span className="font-bold text-slate-900">Parsed Evidence Gates Preview:</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono font-bold text-[11px] border border-emerald-200">
                       {parsedRules.length} Rules Ready
                     </span>
-                    <span className="text-[#94a3b8] text-[11px]">
+                    <span className="text-slate-500 text-[11px]">
                       ({parsedRules.filter((r) => r.isMandatory).length} Mandatory)
                     </span>
                   </div>
@@ -733,15 +733,15 @@ export function AddBrandRuleModal({
                       setImportFile(null);
                       setParsedRules([]);
                     }}
-                    className="text-[#ef4444] hover:underline text-[11px] font-semibold cursor-pointer"
+                    className="text-[#E11F26] hover:underline text-[11px] font-semibold cursor-pointer"
                   >
                     Clear Spreadsheet
                   </button>
                 </div>
 
-                <div className="max-h-[220px] overflow-y-auto border border-[#1a56db]/20 rounded-xl bg-[#081225]">
-                  <table className="w-full text-left text-xs text-[#cbd5e1]">
-                    <thead className="border-b border-[#1a56db]/20 text-[#64748b] uppercase tracking-wider font-semibold bg-[#0d1b3e] sticky top-0">
+                <div className="max-h-[220px] overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-xs">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold bg-slate-50 sticky top-0">
                       <tr>
                         <th className="py-2.5 px-3">Rule Name</th>
                         <th className="py-2.5 px-3">Identifier Key</th>
@@ -751,35 +751,35 @@ export function AddBrandRuleModal({
                         <th className="py-2.5 px-3">Naming Convention</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#1a56db]/10">
+                    <tbody className="divide-y divide-slate-100">
                       {parsedRules.map((rule, idx) => (
-                        <tr key={idx} className="hover:bg-[#132952]/40 transition-colors">
-                          <td className="py-2 px-3 font-semibold text-white">
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2 px-3 font-semibold text-slate-900">
                             {rule.name}
                           </td>
-                          <td className="py-2 px-3 font-mono text-[11px] text-[#00f0ff]">
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-700">
                             {rule.ruleKey}
                           </td>
                           <td className="py-2 px-3 text-center">
-                            <span className="px-1.5 py-0.5 rounded bg-[#132952] text-[10px] font-mono uppercase text-[#cbd5e1]">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono uppercase text-slate-700">
                               {rule.mediaType === 'video' ? '📹 Video' : rule.mediaType === 'document' ? '📄 DTC' : '📷 Photo'}
                             </span>
                           </td>
-                          <td className="py-2 px-3 text-center font-mono text-[10px]">
+                          <td className="py-2 px-3 text-center font-mono text-[10px] text-slate-600">
                             Tier {rule.tier}
                           </td>
                           <td className="py-2 px-3 text-center">
                             {rule.isMandatory ? (
-                              <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold text-[9px] border border-red-500/40">
+                              <span className="px-1.5 py-0.5 rounded bg-red-50 text-[#E11F26] font-bold text-[9px] border border-red-200">
                                 Mandatory
                               </span>
                             ) : (
-                              <span className="px-1.5 py-0.5 rounded bg-[#64748b]/20 text-[#cbd5e1] text-[9px]">
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px]">
                                 Optional
                               </span>
                             )}
                           </td>
-                          <td className="py-2 px-3 font-mono text-[10px] text-[#94a3b8] truncate max-w-[180px]">
+                          <td className="py-2 px-3 font-mono text-[10px] text-slate-500 truncate max-w-[180px]">
                             {rule.namingConvention}
                           </td>
                         </tr>
@@ -791,9 +791,9 @@ export function AddBrandRuleModal({
             )}
 
             {/* Import Footer Actions */}
-            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#1a56db]/20 text-xs">
-              <p className="text-[#64748b]">
-                Target: <strong className="text-white">{selectedPack?.name || 'Selected Brand Pack'}</strong>
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 text-xs">
+              <p className="text-slate-500">
+                Target: <strong className="text-slate-900">{selectedPack?.name || 'Selected Brand Pack'}</strong>
               </p>
               <div className="flex items-center gap-3">
                 <button
@@ -807,10 +807,10 @@ export function AddBrandRuleModal({
                   type="button"
                   disabled={submitting || parsedRules.length === 0}
                   onClick={handleBatchSubmit}
-                  className={`text-xs py-2 px-6 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer ${
+                  className={`text-xs py-2 px-6 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
                     parsedRules.length > 0
-                      ? 'btn-primary shadow-[0_0_20px_rgba(26,86,219,0.4)]'
-                      : 'bg-[#132952] text-[#64748b] cursor-not-allowed'
+                      ? 'btn-primary'
+                      : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                   }`}
                 >
                   {submitting ? (

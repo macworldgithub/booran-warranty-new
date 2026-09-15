@@ -118,50 +118,74 @@ export function Sidebar({ userRole = 'ADMIN', userName = 'Marcus Vance', userEma
   const navItems = isAdmin ? adminNavItems : techNavItems;
 
   return (
-    <aside className="w-64 bg-[#0d1b3e]/90 backdrop-blur-xl border-r border-[#1a56db]/20 flex flex-col justify-between shrink-0 min-h-screen sticky top-0 z-40 transition-all">
+    <aside className="w-64 bg-[#0B0F17] border-r border-slate-800/80 flex flex-col justify-between shrink-0 min-h-screen sticky top-0 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-all">
       <div>
-        {/* Brand Header */}
-        <div className="p-5 border-b border-[#1a56db]/20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#1a56db] to-[#00f0ff] flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-              <span className="font-extrabold text-white text-lg tracking-wider">B</span>
+        {/* Brand Logo Header */}
+        <div className="p-4 border-b border-slate-800/80 bg-gradient-to-b from-[#0F1624] to-[#0B0F17]">
+          <Link href={isAdmin ? "/dashboard" : "/cases"} className="block group">
+            <div className="flex items-center justify-between gap-2">
+              <img
+                src="/booran-motors-official.png"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/booran-logo.png';
+                }}
+                alt="Booran Motors"
+                className="h-8 max-w-[155px] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] group-hover:opacity-95 transition-opacity"
+              />
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-red-950/70 text-red-400 border border-red-800/60 font-bold shrink-0">
+                {isAdmin ? 'ADMIN' : 'TECH'}
+              </span>
             </div>
-            <div>
-              <div className="font-bold text-white text-sm tracking-wide flex items-center gap-1.5">
-                BOORAN
-                <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-[#1a56db]/30 text-[#00f0ff] border border-[#00f0ff]/30">
-                  {isAdmin ? 'ADMIN' : 'TECH'}
-                </span>
-              </div>
-              <div className="text-[11px] text-gray-400">Warranty Evidence CRM</div>
+            <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono tracking-wider">
+              <span className="text-slate-400 font-medium">WARRANTY EVIDENCE</span>
+              <span className="text-[#E11F26] font-extrabold tracking-widest">PORTAL</span>
             </div>
+          </Link>
+        </div>
+
+        {/* Franchises Roster Pill (Matches website hero sub-bar) */}
+        <div className="mx-3 mt-3.5 mb-1 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)] animate-pulse" />
+            <span className="text-[11px] font-medium text-slate-300">VIC Multi-Franchise</span>
           </div>
+          <span className="text-[10px] font-mono text-slate-400 uppercase">5 Sites</span>
         </div>
 
         {/* Navigation Links */}
-        <nav className="p-4 space-y-1.5">
+        <nav className="p-3 space-y-1.5">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   item.highlight
                     ? isActive
-                      ? 'bg-gradient-to-r from-[#1a56db] to-[#00f0ff] text-white shadow-[0_0_20px_rgba(0,240,255,0.4)]'
-                      : 'bg-[#1a56db]/20 text-[#00f0ff] border border-[#00f0ff]/30 hover:bg-[#1a56db]/30'
+                      ? 'bg-[#E11F26] text-white shadow-lg shadow-red-950/60 font-bold'
+                      : 'bg-red-950/40 text-red-400 border border-red-800/60 hover:bg-[#E11F26] hover:text-white font-bold'
                     : isActive
-                    ? 'bg-[#1a56db]/20 text-white border-l-4 border-[#00f0ff] shadow-inner'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-[#E11F26] text-white font-bold shadow-lg shadow-red-950/50'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className={isActive ? 'text-[#00f0ff]' : 'text-gray-400'}>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span className={`transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+                    {item.icon}
+                  </span>
+                  <span className={`transition-colors ${isActive ? 'text-white font-bold' : 'text-slate-300 group-hover:text-white'}`}>
+                    {item.label}
+                  </span>
                 </div>
                 {item.badge && (
-                  <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-[#1a56db]/30 text-[#00f0ff] border border-[#1a56db]/50">
+                  <span
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors ${
+                      isActive
+                        ? 'bg-white text-[#E11F26]'
+                        : 'bg-red-950/80 text-red-300 border border-red-800/60'
+                    }`}
+                  >
                     {item.badge}
                   </span>
                 )}
@@ -172,21 +196,21 @@ export function Sidebar({ userRole = 'ADMIN', userName = 'Marcus Vance', userEma
       </div>
 
       {/* User Footer Profile & Logout */}
-      <div className="p-4 border-t border-[#1a56db]/20 bg-[#081225]/60">
+      <div className="p-3.5 border-t border-slate-800/80 bg-[#070A10]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-[#1a56db]/40 border border-[#00f0ff]/40 flex items-center justify-center text-xs font-bold text-white shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#E11F26] text-white flex items-center justify-center text-xs font-black shadow-md shadow-red-950/60 shrink-0">
               {userName ? userName.split(' ').map((n) => n[0]).join('') : 'U'}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-white truncate">{userName}</div>
-              <div className="text-[10px] text-gray-400 truncate">{userEmail}</div>
+              <div className="text-xs font-bold text-white truncate">{userName}</div>
+              <div className="text-[10px] text-slate-400 truncate font-mono">{userEmail}</div>
             </div>
           </div>
           <button
             type="button"
             onClick={handleLogout}
-            className="p-1.5 text-gray-400 hover:text-red-400 rounded hover:bg-red-500/10 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
             title="Log Out (Clear Session)"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
