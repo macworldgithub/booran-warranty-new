@@ -229,7 +229,7 @@ function FlaggedCasesModal({
                             {latestFlag.instruction}
                           </p>
                           <p className="text-[9px] text-[#64748b] mt-1">
-                            Flagged by {latestFlag.flaggedBy} · {new Date(latestFlag.flaggedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            Flagged by {latestFlag.flaggedBy} · {new Date(latestFlag.flaggedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}
                           </p>
                         </div>
                       </div>

@@ -370,7 +370,19 @@ export default function CaseDetailPage() {
     <div className="flex-1 flex flex-col pb-12">
       <Header
         title={`Case: ${caseData.roNumber}`}
-        subtitle={`${caseData.brandName} · ${caseData.siteName} · Tech: ${caseData.technicianName}`}
+        subtitle={`${caseData.brandName} · ${caseData.siteName} · Tech: ${caseData.technicianName}${
+          caseData.createdAt
+            ? ` · ${new Date(caseData.createdAt).toLocaleDateString('en-AU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })} ${new Date(caseData.createdAt).toLocaleTimeString('en-AU', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })}`
+            : ''
+        }`}
         action={
           <div className="flex items-center gap-2">
             <Link
@@ -574,6 +586,23 @@ export default function CaseDetailPage() {
                   {caseData.powertrain}
                 </span>
               </p>
+              {caseData.createdAt && (
+                <p className="text-[#cbd5e1] flex justify-between pt-1 border-t border-[#1a56db]/10">
+                  <span className="text-[#64748b]">Opened:</span>
+                  <span className="text-[#00f0ff] font-mono text-[11px]">
+                    {new Date(caseData.createdAt).toLocaleDateString('en-AU', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}{' '}
+                    {new Date(caseData.createdAt).toLocaleTimeString('en-AU', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    })}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 

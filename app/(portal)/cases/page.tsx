@@ -403,8 +403,22 @@ export default function CasesPage() {
                         </td>
                         <td className="py-3.5 px-4">
                           <p className="font-medium text-white">{c.technicianName}</p>
-                          <p className="text-[10px] text-[#64748b]">
-                            {new Date(c.createdAt).toLocaleDateString()}
+                          <p className="text-[10px] text-[#64748b] flex items-center gap-1 mt-0.5 whitespace-nowrap">
+                            <span>
+                              {new Date(c.createdAt).toLocaleDateString('en-AU', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            <span>·</span>
+                            <span className="text-[#00f0ff]/80 font-mono">
+                              {new Date(c.createdAt).toLocaleTimeString('en-AU', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false,
+                              })}
+                            </span>
                           </p>
                         </td>
                         <td className="py-3.5 px-4 text-center">
