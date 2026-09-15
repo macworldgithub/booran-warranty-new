@@ -117,12 +117,12 @@ export default function LoginPage() {
           </div>
           <div className="flex justify-center mb-3">
             <img
-              src="/booran-motors-official.png"
+              src="/booran-motors-transparent.png"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/booran-logo.png';
+                (e.target as HTMLImageElement).src = '/booran-motors-black.png';
               }}
               alt="Booran Motors"
-              className="h-14 sm:h-16 w-auto object-contain"
+              className="h-14 sm:h-16 w-auto object-contain mix-blend-multiply"
             />
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center gap-2">
