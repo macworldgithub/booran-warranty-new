@@ -1,4 +1,4 @@
-﻿import {
+import {
   UserProfile,
   Site,
   Brand,
@@ -13,6 +13,7 @@
   FaultCategory,
   FlagReasonCode,
   MediaType,
+  PaginatedResult,
 } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -357,9 +358,12 @@ export const api = {
     technicianName?: string;
     ro?: string;
     vin?: string;
+    search?: string;
     flaggedOnly?: boolean;
     agedHours?: number;
-  }): Promise<WarrantyCase[]> {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResult<WarrantyCase>> {
     const query = new URLSearchParams();
     if (params?.siteId) query.append("siteId", params.siteId);
     if (params?.brandId) query.append("brandId", params.brandId);
@@ -368,16 +372,33 @@ export const api = {
     if (params?.technicianName) query.append("technicianName", params.technicianName);
     if (params?.ro) query.append("ro", params.ro);
     if (params?.vin) query.append("vin", params.vin);
+    if (params?.search) query.append("search", params.search);
     if (params?.flaggedOnly) query.append("flaggedOnly", "true");
     if (params?.agedHours)
       query.append("agedHours", params.agedHours.toString());
+    if (params?.page) query.append("page", params.page.toString());
+    if (params?.limit) query.append("limit", params.limit.toString());
 
     const qs = query.toString();
     const url = `${BASE_URL}/warranty-cases${qs ? "?" + qs : ""}`;
     const res = await fetch(url, {
       headers: getAuthHeader(),
     });
-    return handleResponse(res);
+    const result = await handleResponse<any>(res);
+    if (Array.isArray(result)) {
+      return {
+        data: result,
+        meta: {
+          total: result.length,
+          page: 1,
+          limit: result.length || 10,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      };
+    }
+    return result;
   },
 
   async getCase(id: string): Promise<WarrantyCase> {

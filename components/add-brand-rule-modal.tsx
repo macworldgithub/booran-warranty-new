@@ -42,6 +42,14 @@ export function AddBrandRuleModal({
   const [triggerType, setTriggerType] = useState<'NONE' | 'PART_REPLACED' | 'NOISE' | 'DIAGNOSTIC' | 'HV_BATTERY'>('NONE');
   const [autoKey, setAutoKey] = useState(true);
 
+  // Reference / Sample Media State
+  const [exampleImageUrl, setExampleImageUrl] = useState('');
+  const [exampleFileName, setExampleFileName] = useState('');
+  const [exampleFileSize, setExampleFileSize] = useState(0);
+  const [isReadingExample, setIsReadingExample] = useState(false);
+  const [isExampleDragging, setIsExampleDragging] = useState(false);
+  const exampleFileInputRef = useRef<HTMLInputElement>(null);
+
   // Import State
   const [importFile, setImportFile] = useState<File | null>(null);
   const [parsedRules, setParsedRules] = useState<Partial<BrandPackRule>[]>([]);
@@ -101,6 +109,41 @@ export function AddBrandRuleModal({
     }
   }
 
+  function handleExampleFile(file: File) {
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Sample file size exceeds 15MB limit', 'error');
+      return;
+    }
+
+    setIsReadingExample(true);
+    setExampleFileName(file.name);
+    setExampleFileSize(file.size);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setExampleImageUrl(reader.result as string);
+      setIsReadingExample(false);
+      showToast(`Sample "${file.name}" loaded as reference guide!`, 'success');
+    };
+    reader.onerror = () => {
+      showToast('Failed to read selected file', 'error');
+      setIsReadingExample(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleExampleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) handleExampleFile(file);
+  }
+
+  function handleExampleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsExampleDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleExampleFile(file);
+  }
+
   // Handle Manual Submission
   async function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -133,6 +176,7 @@ export function AddBrandRuleModal({
         isMandatory,
         namingConvention: namingConvention.trim() || `[DealerRONumber]${ruleKey}.jpg`,
         guidanceText: guidanceText.trim(),
+        exampleImageUrl: exampleImageUrl.trim() || undefined,
         faultCategorySpecific,
       };
 
@@ -218,6 +262,7 @@ export function AddBrandRuleModal({
         const rowNaming = cleanRow['namingconvention'] || cleanRow['naming'] || cleanRow['filename'] || defaultNaming;
 
         const rowGuidance = cleanRow['viewfinderguidance'] || cleanRow['guidance'] || cleanRow['description'] || cleanRow['hud'] || '';
+        const rowExample = cleanRow['exampleimageurl'] || cleanRow['exampleimage'] || cleanRow['sampleimage'] || cleanRow['imageurl'] || '';
 
         const triggerVal = String(cleanRow['trigger'] || cleanRow['triggercondition'] || '').toLowerCase();
         const faultCategorySpecific: string[] = [];
@@ -234,6 +279,7 @@ export function AddBrandRuleModal({
           isMandatory: rowMandatory,
           namingConvention: String(rowNaming).trim(),
           guidanceText: String(rowGuidance).trim(),
+          exampleImageUrl: rowExample ? String(rowExample).trim() : undefined,
           faultCategorySpecific,
         });
       });
@@ -336,6 +382,11 @@ export function AddBrandRuleModal({
     setNamingConvention('');
     setGuidanceText('');
     setTriggerType('NONE');
+    setExampleImageUrl('');
+    setExampleFileName('');
+    setExampleFileSize(0);
+    setIsReadingExample(false);
+    setIsExampleDragging(false);
     setImportFile(null);
     setParsedRules([]);
     setParseErrors([]);
@@ -456,43 +507,202 @@ export function AddBrandRuleModal({
                 />
               </div>
 
-              {/* Media Type */}
-              <div className="space-y-1.5">
-                <label className="text-slate-800 font-bold">Media Type *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleMediaTypeChange('image')}
-                    className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
+              {/* Media Type & Sample Reference Dropzone */}
+              <div className="space-y-3 sm:col-span-2 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-800 font-bold text-xs">
+                      Media Type Required from Technician *
+                    </label>
+                    <span className="text-[11px] text-slate-500">
+                      Select expected capture format
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleMediaTypeChange('image')}
+                      className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
+                        mediaType === 'image'
+                          ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs ring-1 ring-[#E11F26]'
+                          : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      📷 Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMediaTypeChange('video')}
+                      className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
+                        mediaType === 'video'
+                          ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs ring-1 ring-[#E11F26]'
+                          : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      📹 Video
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMediaTypeChange('document')}
+                      className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
+                        mediaType === 'document'
+                          ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs ring-1 ring-[#E11F26]'
+                          : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      }`}
+                    >
+                      📄 DTC / PDF
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sample Reference Media Upload */}
+                <div className="space-y-2 pt-2 border-t border-slate-200/80">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-slate-900 font-bold text-xs flex items-center gap-1.5">
+                        <span>📸 Upload OEM Reference Sample (Technician Guide)</span>
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Recommended
+                        </span>
+                      </label>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {mediaType === 'image'
+                          ? 'Upload a sample photo showing technicians the required angle, framing, and lighting.'
+                          : mediaType === 'video'
+                          ? 'Upload an example demonstration video showing how to capture this defect.'
+                          : 'Upload a sample DTC scan report, calibration sheet, or VDS PDF specification.'}
+                      </p>
+                    </div>
+
+                    {exampleImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExampleImageUrl('');
+                          setExampleFileName('');
+                          setExampleFileSize(0);
+                        }}
+                        className="text-[11px] font-bold text-[#E11F26] hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        ✕ Remove Sample
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    ref={exampleFileInputRef}
+                    type="file"
+                    accept={
                       mediaType === 'image'
-                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    📷 Photo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMediaTypeChange('video')}
-                    className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
-                      mediaType === 'video'
-                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    📹 Video
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMediaTypeChange('document')}
-                    className={`py-2 px-2 rounded-xl text-center font-bold text-xs transition-all border cursor-pointer ${
-                      mediaType === 'document'
-                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] shadow-xs'
-                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    📄 DTC / PDF
-                  </button>
+                        ? 'image/jpeg,image/png,image/webp,image/jpg'
+                        : mediaType === 'video'
+                        ? 'video/mp4,video/quicktime,video/webm'
+                        : '.pdf,application/pdf,image/*'
+                    }
+                    onChange={handleExampleInputChange}
+                    className="hidden"
+                  />
+
+                  {!exampleImageUrl ? (
+                    <div
+                      onClick={() => exampleFileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsExampleDragging(true);
+                      }}
+                      onDragLeave={() => setIsExampleDragging(false)}
+                      onDrop={handleExampleDrop}
+                      className={`border-2 border-dashed rounded-xl p-4 flex flex-col sm:flex-row items-center justify-center gap-3 cursor-pointer transition-all ${
+                        isExampleDragging
+                          ? 'border-[#E11F26] bg-red-50/50 scale-[0.99]'
+                          : 'border-slate-300 hover:border-[#E11F26] bg-white hover:bg-red-50/20'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E11F26] flex items-center justify-center font-bold text-lg shrink-0">
+                        {isReadingExample ? (
+                          <div className="w-5 h-5 border-2 border-[#E11F26] border-t-transparent rounded-full animate-spin" />
+                        ) : mediaType === 'image' ? (
+                          '📷'
+                        ) : mediaType === 'video' ? (
+                          '📹'
+                        ) : (
+                          '📄'
+                        )}
+                      </div>
+                      <div className="text-center sm:text-left">
+                        <p className="text-xs font-bold text-slate-800">
+                          {isReadingExample
+                            ? 'Reading file...'
+                            : mediaType === 'image'
+                            ? 'Drop sample photo here, or click to browse'
+                            : mediaType === 'video'
+                            ? 'Drop sample video here (.mp4), or click to browse'
+                            : 'Drop sample PDF / scan document here, or click to browse'}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {mediaType === 'image'
+                            ? 'JPG, PNG, WebP up to 15MB · Will appear as the benchmark guide on mobile'
+                            : mediaType === 'video'
+                            ? 'MP4, MOV up to 15MB · Plays in mobile wizard as example defect recording'
+                            : 'PDF or scan image up to 15MB · Attaches as OEM diagnostic spec reference'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Attached Sample Preview Card */
+                    <div className="p-3 rounded-xl bg-white border border-emerald-200 flex items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        {/* Thumbnail / Icon */}
+                        <div className="w-16 h-12 rounded-lg bg-slate-100 overflow-hidden border border-slate-200 shrink-0 flex items-center justify-center">
+                          {mediaType === 'image' && (
+                            <img
+                              src={exampleImageUrl}
+                              alt="Sample preview"
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                          {mediaType === 'video' && (
+                            <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold">
+                              ▶ Video
+                            </div>
+                          )}
+                          {mediaType === 'document' && (
+                            <div className="w-full h-full bg-red-50 text-[#E11F26] flex flex-col items-center justify-center font-bold text-[10px]">
+                              <span>📄</span>
+                              <span>PDF</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* File Details */}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <p className="text-xs font-bold text-slate-900 truncate">
+                              {exampleFileName || 'Sample Reference Attached'}
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                            {exampleFileSize > 0 && (
+                              <span>{(exampleFileSize / 1024).toFixed(1)} KB</span>
+                            )}
+                            <span className="text-emerald-700 font-semibold">
+                              ✓ Ready for Technician View
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Replace Button */}
+                      <button
+                        type="button"
+                        onClick={() => exampleFileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-bold shrink-0 cursor-pointer"
+                      >
+                        Replace
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

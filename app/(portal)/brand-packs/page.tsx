@@ -165,11 +165,11 @@ export default function BrandPacksPage() {
       setLoading(true);
       const [packsData, casesData] = await Promise.all([
         api.getBrandPacks(),
-        api.getWarrantyCases(),
+        api.getWarrantyCases({ limit: 100 }),
       ]);
 
       setPacks(packsData);
-      setCases(casesData);
+      setCases(casesData.data || (casesData as any));
 
       if (packsData.length > 0) {
         if (!selectedPack) {
@@ -228,8 +228,65 @@ export default function BrandPacksPage() {
     }
   };
 
-  const getBenchmarkForRule = (ruleKey: string): BenchmarkInfo => {
-    return RULE_BENCHMARKS[ruleKey] || DEFAULT_BENCHMARK;
+  const handleOpenPdf = (dataUrlOrUrl: string) => {
+    try {
+      if (dataUrlOrUrl.startsWith('data:')) {
+        const arr = dataUrlOrUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+      } else {
+        window.open(dataUrlOrUrl, '_blank');
+      }
+    } catch (e) {
+      console.error('Failed to open PDF:', e);
+      showToast('Could not open PDF in new tab.', 'error');
+    }
+  };
+
+  const handleDownloadMedia = (dataUrlOrUrl: string, fileName: string) => {
+    try {
+      const link = document.createElement('a');
+      if (dataUrlOrUrl.startsWith('data:')) {
+        const arr = dataUrlOrUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        link.href = URL.createObjectURL(blob);
+      } else {
+        link.href = dataUrlOrUrl;
+      }
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error('Failed to download media:', e);
+      showToast('Download failed', 'error');
+    }
+  };
+
+  const getBenchmarkForRule = (ruleKey: string, exampleImageUrl?: string): BenchmarkInfo => {
+    const base = RULE_BENCHMARKS[ruleKey] || DEFAULT_BENCHMARK;
+    if (exampleImageUrl) {
+      return {
+        ...base,
+        sampleImage: exampleImageUrl,
+      };
+    }
+    return base;
   };
 
   const uniqueBrands = useMemo(() => {
@@ -771,7 +828,7 @@ export default function BrandPacksPage() {
                       const isBarcode = rule.ruleKey.includes('serial') || rule.ruleKey.includes('barcode');
                       const isDiagnostic = rule.ruleKey.includes('diagnostic');
                       const flaggedCases = getCasesFlaggedForRule(rule.ruleKey);
-                      const benchmark = getBenchmarkForRule(rule.ruleKey);
+                      const benchmark = getBenchmarkForRule(rule.ruleKey, rule.exampleImageUrl);
 
                       return (
                         <div
@@ -829,11 +886,22 @@ export default function BrandPacksPage() {
                               className="w-24 h-16 rounded-xl overflow-hidden border border-slate-200 group-hover:border-[#E11F26] shrink-0 relative shadow-sm group/thumb"
                               title="Click to inspect full OEM reference benchmark"
                             >
-                              <img
-                                src={benchmark.sampleImage}
-                                alt={rule.name}
-                                className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300"
-                              />
+                              {rule.mediaType === 'document' || (rule.exampleImageUrl && (rule.exampleImageUrl.startsWith('data:application/pdf') || rule.exampleImageUrl.includes('.pdf'))) ? (
+                                <div className="w-full h-full bg-red-50 text-[#E11F26] flex flex-col items-center justify-center font-bold text-[10px]">
+                                  <span>📄</span>
+                                  <span>PDF SPEC</span>
+                                </div>
+                              ) : rule.mediaType === 'video' ? (
+                                <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px]">
+                                  ▶ Video
+                                </div>
+                              ) : (
+                                <img
+                                  src={benchmark.sampleImage}
+                                  alt={rule.name}
+                                  className="w-full h-full object-contain p-1 bg-slate-50 group-hover/thumb:scale-105 transition-transform duration-300"
+                                />
+                              )}
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-bold">
                                 View 🔍
                               </div>
@@ -931,7 +999,7 @@ export default function BrandPacksPage() {
         maxWidth="3xl"
       >
         {activeActionRule && (() => {
-          const benchmark = getBenchmarkForRule(activeActionRule.ruleKey);
+          const benchmark = getBenchmarkForRule(activeActionRule.ruleKey, activeActionRule.exampleImageUrl);
           const flaggedCases = getCasesFlaggedForRule(activeActionRule.ruleKey);
           const workshopCases = getCasesRequiringRule(activeActionRule.ruleKey);
           const flaggedCount = flaggedCases.length;
@@ -1006,50 +1074,161 @@ export default function BrandPacksPage() {
               {/* TAB 1: OFFICIAL OEM BENCHMARK SAMPLE */}
               {actionTab === 'SAMPLE_BENCHMARK' && (
                 <div className="space-y-4 pt-1">
-                  {/* Large High-Resolution OEM Benchmark Image Frame */}
-                  <div className="relative w-full aspect-video sm:h-[360px] bg-slate-900 rounded-2xl border-2 border-slate-300 overflow-hidden shadow-md flex flex-col justify-between">
-                    <img
-                      src={benchmark.sampleImage}
-                      alt={activeActionRule.name}
-                      className="absolute inset-0 w-full h-full object-cover z-0"
-                    />
+                  {(() => {
+                    const isPdf = activeActionRule.mediaType === 'document' ||
+                                  benchmark.sampleImage.startsWith('data:application/pdf') ||
+                                  benchmark.sampleImage.toLowerCase().endsWith('.pdf');
 
-                    {/* Reticle Framing Guidelines */}
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6 z-10">
-                      <div className="w-full h-full border-2 border-dashed border-white/60 rounded-xl relative flex items-center justify-center">
-                        <div className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-white"></div>
-                        <div className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-white"></div>
-                        <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-white"></div>
-                        <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-white"></div>
+                    const isRealVideo = benchmark.sampleImage.startsWith('data:video') ||
+                                        benchmark.sampleImage.toLowerCase().endsWith('.mp4') ||
+                                        benchmark.sampleImage.toLowerCase().endsWith('.webm') ||
+                                        benchmark.sampleImage.toLowerCase().endsWith('.mov');
+
+                if (isPdf) {
+                  return (
+                    <div className="space-y-3 pt-1">
+                      {/* PDF Action Toolbar */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-8 h-8 rounded-lg bg-red-50 text-[#E11F26] flex items-center justify-center font-bold text-base border border-red-200">
+                            📄
+                          </span>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">
+                              OEM Technical Service Bulletin / DTC Diagnostic Spec PDF
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              Official document standard for {activeActionRule.name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPdf(benchmark.sampleImage)}
+                            className="px-3.5 py-1.5 rounded-lg bg-[#E11F26] text-white text-xs font-bold hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                          >
+                            <span>Open in Full Window</span>
+                            <span>↗</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadMedia(benchmark.sampleImage, `${activeActionRule.ruleKey}_spec.pdf`)}
+                            className="px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Download PDF</span>
+                            <span>⬇</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Embedded Interactive PDF Viewer */}
+                      <div className="w-full h-[450px] rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-slate-100 relative">
+                        <iframe
+                          src={benchmark.sampleImage}
+                          className="w-full h-full border-0 rounded-2xl bg-white"
+                          title={activeActionRule.name}
+                        />
                       </div>
                     </div>
+                  );
+                }
 
-                    {/* Top Overlay Bar */}
-                    <div className="relative z-20 flex items-center justify-between text-[11px] font-mono text-white bg-black/80 backdrop-blur-md px-3.5 py-1.5 rounded-b-xl border-b border-white/20 mx-3 mt-0">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded bg-emerald-500 text-black font-extrabold text-[10px] uppercase tracking-wide">
-                          ✓ Compliant OEM Sample
-                        </span>
-                        <span className="font-bold text-white">{activeActionRule.name}</span>
+                if (isRealVideo) {
+                  return (
+                    <div className="space-y-3 pt-1">
+                      {/* Video Header & Controls */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs">
+                            ▶
+                          </span>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">
+                              Official OEM Video Demonstration Clip
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              15–30s recording demonstration for {activeActionRule.name}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadMedia(benchmark.sampleImage, `${activeActionRule.ruleKey}_demo.mp4`)}
+                          className="px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Download Video</span>
+                          <span>⬇</span>
+                        </button>
                       </div>
-                      <span className="text-slate-300">
-                        Standard: <strong className="text-white">{benchmark.specStandard}</strong>
-                      </span>
-                    </div>
 
-                    {/* Bottom HUD Overlay Bar */}
-                    <div className="relative z-20 bg-black/85 backdrop-blur-md p-3 rounded-t-xl border-t border-white/20 text-xs space-y-1 mx-3 mb-0">
-                      <p className="text-white font-bold flex items-center gap-1.5">
-                        <span className="text-[#E11F26]">📸 Viewfinder Overlay HUD:</span>
-                        <span className="text-slate-200 font-normal">
-                          {activeActionRule.guidanceText || activeActionRule.description}
+                      {/* Video Player without obstructing overlays */}
+                      <div className="w-full h-[360px] bg-black rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md flex items-center justify-center relative">
+                        <video
+                          src={benchmark.sampleImage}
+                          controls
+                          playsInline
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+
+                // If video rule but using still reference snapshot
+                const isVideoStill = activeActionRule.mediaType === 'video';
+
+                return (
+                  <div className="space-y-4 pt-1">
+                    {/* Large High-Resolution OEM Benchmark Image Frame */}
+                    <div className="relative w-full aspect-video sm:h-[360px] bg-slate-900 rounded-2xl border-2 border-slate-300 overflow-hidden shadow-md flex flex-col justify-between">
+                      <img
+                        src={benchmark.sampleImage}
+                        alt={activeActionRule.name}
+                        className="absolute inset-0 w-full h-full object-contain p-2 z-0"
+                      />
+
+                      {/* Reticle Framing Guidelines */}
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6 z-10">
+                        <div className="w-full h-full border-2 border-dashed border-white/60 rounded-xl relative flex items-center justify-center">
+                          <div className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-white"></div>
+                          <div className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-white"></div>
+                          <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-white"></div>
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-white"></div>
+                        </div>
+                      </div>
+
+                      {/* Top Overlay Bar */}
+                      <div className="relative z-20 flex items-center justify-between text-[11px] font-mono text-white bg-black/80 backdrop-blur-md px-3.5 py-1.5 rounded-b-xl border-b border-white/20 mx-3 mt-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded ${isVideoStill ? 'bg-amber-400 text-black' : 'bg-emerald-500 text-black'} font-extrabold text-[10px] uppercase tracking-wide`}>
+                            {isVideoStill ? '📹 Video Capture Benchmark (Still Reference)' : '✓ Compliant OEM Sample'}
+                          </span>
+                          <span className="font-bold text-white">{activeActionRule.name}</span>
+                        </div>
+                        <span className="text-slate-300">
+                          Standard: <strong className="text-white">{benchmark.specStandard}</strong>
                         </span>
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Mandated by OEM Warranty Bulletin: Auto-named as <strong>RO10482_{activeActionRule.namingConvention.replace('[DealerRONumber]', '')}</strong> upon mobile technician capture.
-                      </p>
+                      </div>
+
+                      {/* Bottom HUD Overlay Bar */}
+                      <div className="relative z-20 bg-black/85 backdrop-blur-md p-3 rounded-t-xl border-t border-white/20 text-xs space-y-1 mx-3 mb-0">
+                        <p className="text-white font-bold flex items-center gap-1.5">
+                          <span className="text-[#E11F26]">{isVideoStill ? '📹 Viewfinder Video HUD:' : '📸 Viewfinder Overlay HUD:'}</span>
+                          <span className="text-slate-200 font-normal">
+                            {activeActionRule.guidanceText || activeActionRule.description}
+                          </span>
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {isVideoStill
+                            ? `Mandated 15–30s MP4 audio/video recording. Auto-named as RO10482_${activeActionRule.namingConvention.replace('[DealerRONumber]', '')} upon capture.`
+                            : `Mandated by OEM Warranty Bulletin: Auto-named as RO10482_${activeActionRule.namingConvention.replace('[DealerRONumber]', '')} upon mobile technician capture.`}
+                        </p>
+                      </div>
                     </div>
                   </div>
+                );
+              })()}
 
                   {/* Side-by-side Quality Requirements (Good Standard vs Bad Pitfalls) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

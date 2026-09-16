@@ -74,6 +74,7 @@ export interface BrandPackRule {
   isMandatory: boolean;
   namingConvention: string;
   guidanceText?: string;
+  exampleImageUrl?: string;
   faultCategorySpecific?: string[];
 }
 
@@ -286,4 +287,18 @@ export interface DecodedVehicle {
   year: number;
   powertrain: PowertrainType;
   provider: string;
+}
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: PaginationMeta;
 }

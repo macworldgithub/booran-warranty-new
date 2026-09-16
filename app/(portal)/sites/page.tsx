@@ -1,13 +1,16 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Header } from '../../../components/header';
+import { useToast } from '../../../components/toast';
 import { api } from '../../../lib/api';
 import { Site, Brand } from '../../../lib/types';
 
 /* ─── helpers ─── */
-function brandLabel(id: string) {
-  return id.replace('brand_', '').toUpperCase();
+function brandLabel(id: string, allBrands: Brand[]) {
+  const found = allBrands.find((b) => b.id === id);
+  if (found) return found.name;
+  return id.replace(/^brand_/, '').toUpperCase();
 }
 
 /* ─── Modal ─── */
@@ -35,7 +38,7 @@ function SiteModal({ allBrands, site, onClose, onSaved }: SiteModalProps) {
 
   const handleSave = async () => {
     if (!name.trim() || !location.trim() || !roPrefix.trim()) {
-      setError('Name, location and RO prefix are required.');
+      setError('Rooftop name, address/location, and RO prefix are required.');
       return;
     }
     setSaving(true);
@@ -57,54 +60,139 @@ function SiteModal({ allBrands, site, onClose, onSaved }: SiteModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="glass-card w-full max-w-lg border border-[#1a56db]/40 rounded-2xl p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-extrabold text-white">{isEdit ? 'Edit Dealership Site' : 'New Dealership Site'}</h2>
-            <p className="text-xs text-[#64748b] mt-0.5">{isEdit ? 'Update rooftop details and authorized OEM brands.' : 'Add a new Booran rooftop and link OEM brands to it.'}</p>
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">
+              {isEdit ? 'Edit Dealership Rooftop' : 'New Dealership Rooftop'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isEdit
+                ? 'Update location details and authorized OEM franchise links.'
+                : 'Register a new Booran dealership site and link franchised brands.'}
+            </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#64748b] hover:text-white hover:bg-white/10 transition-colors">✕</button>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <div className="space-y-3">
+
+        {/* Content */}
+        <div className="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-sm text-slate-700">
           <div>
-            <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Site / Rooftop Name <span className="text-red-400">*</span></label>
-            <input className="input-field w-full text-sm" placeholder="e.g. Booran BYD Cranbourne" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Location / Address <span className="text-red-400">*</span></label>
-            <input className="input-field w-full text-sm" placeholder="e.g. South Gippsland Hwy, Cranbourne VIC" value={location} onChange={(e) => setLocation(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#94a3b8] mb-1">RO Prefix <span className="text-red-400">*</span></label>
-            <input className="input-field w-full text-sm font-mono" placeholder="e.g. CR-" value={roPrefix} onChange={(e) => setRoPrefix(e.target.value.toUpperCase())} />
-            <p className="text-[11px] text-[#64748b] mt-1">Used as prefix for all repair order file names at this site.</p>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#94a3b8] mb-2">
-              Authorized OEM Brands
-              <span className="ml-2 text-[11px] text-[#64748b] font-normal">(select all that operate at this rooftop)</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Site / Rooftop Name <span className="text-[#E11F26]">*</span>
             </label>
-            <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-[#0b1529] border border-[#1a56db]/20 min-h-[48px]">
-              {allBrands.length === 0 && <span className="text-xs text-[#64748b]">No brands available — create brands first.</span>}
+            <input
+              className="input-field w-full text-xs"
+              placeholder="e.g. Booran BYD Cranbourne"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Location / Street Address <span className="text-[#E11F26]">*</span>
+            </label>
+            <input
+              className="input-field w-full text-xs"
+              placeholder="e.g. South Gippsland Hwy, Cranbourne VIC 3977"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              RO Prefix <span className="text-[#E11F26]">*</span>
+            </label>
+            <input
+              className="input-field w-full text-xs font-mono font-bold"
+              placeholder="e.g. CR-"
+              value={roPrefix}
+              onChange={(e) => setRoPrefix(e.target.value.toUpperCase())}
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              Prefix automatically assigned to Repair Orders created at this site (e.g. CR-90210).
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Authorized OEM Franchises
+            </label>
+            <p className="text-[11px] text-slate-500 mb-2.5">
+              Select all OEM brands operating at this rooftop. Technicians at this site will only see checklists for selected brands.
+            </p>
+            <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 min-h-[52px]">
+              {allBrands.length === 0 && (
+                <span className="text-xs text-slate-400">No brands available — configure OEM brands first.</span>
+              )}
               {allBrands.map((b) => {
                 const active = selectedBrandIds.includes(b.id);
                 return (
-                  <button key={b.id} type="button" onClick={() => toggleBrand(b.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${active ? 'bg-[#1a56db]/30 border-[#00f0ff] text-[#00f0ff]' : 'bg-[#132952]/50 border-[#1a56db]/20 text-[#64748b] hover:border-[#1a56db]/60 hover:text-[#94a3b8]'}`}>
-                    {active && <span className="mr-1">✓</span>}{b.name}
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => toggleBrand(b.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                      active
+                        ? 'bg-red-50 border-[#E11F26] text-[#E11F26] font-bold shadow-xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                    }`}
+                  >
+                    {active ? (
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#E11F26] text-white flex items-center justify-center text-[9px] font-bold">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="w-3.5 h-3.5 rounded-full border border-slate-300" />
+                    )}
+                    <span>{b.name}</span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[11px] text-[#64748b] mt-1">{selectedBrandIds.length} brand{selectedBrandIds.length !== 1 ? 's' : ''} linked</p>
+            <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
+              {selectedBrandIds.length} brand{selectedBrandIds.length !== 1 ? 's' : ''} linked to this site
+            </p>
           </div>
+
+          {error && (
+            <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">
+              {error}
+            </div>
+          )}
         </div>
-        {error && <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>}
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 btn-secondary text-sm py-2 rounded-xl">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary text-sm py-2 px-6 rounded-xl font-bold disabled:opacity-50">
-            {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Site'}
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="btn-ghost text-xs px-4 py-2 rounded-xl font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary text-xs px-5 py-2 rounded-xl font-bold disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Rooftop'}
           </button>
         </div>
       </div>
@@ -114,19 +202,15 @@ function SiteModal({ allBrands, site, onClose, onSaved }: SiteModalProps) {
 
 /* ─── Page ─── */
 export default function SitesPage() {
+  const { showToast } = useToast();
   const [sites, setSites] = useState<Site[]>([]);
   const [allBrands, setAllBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [modalSite, setModalSite] = useState<Site | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deactivating, setDeactivating] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
-
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
-  };
 
   useEffect(() => {
     async function load() {
@@ -136,47 +220,69 @@ export default function SitesPage() {
         setAllBrands(b);
       } catch (err) {
         console.error(err);
+        showToast('Failed to load dealership sites or brands.', 'error');
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [showToast]);
+
+  const activeSites = useMemo(() => sites.filter((s) => s.isActive !== false), [sites]);
+  const inactiveSites = useMemo(() => sites.filter((s) => s.isActive === false), [sites]);
 
   const filteredSites = useMemo(() => {
-    if (!searchQuery.trim()) return sites;
-    const q = searchQuery.toLowerCase().trim();
     return sites.filter((site) => {
+      if (statusFilter === 'ACTIVE' && site.isActive === false) return false;
+      if (statusFilter === 'INACTIVE' && site.isActive !== false) return false;
+
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
       const matchName = site.name?.toLowerCase().includes(q);
       const matchLocation = site.location?.toLowerCase().includes(q);
       const matchPrefix = site.roPrefix?.toLowerCase().includes(q);
-      const matchBrand = site.authorizedBrandIds?.some((bid) => bid.toLowerCase().replace('brand_', '').includes(q));
+      const matchBrand = site.authorizedBrandIds?.some((bid) => {
+        const b = allBrands.find((brand) => brand.id === bid);
+        return b?.name?.toLowerCase().includes(q) || bid.toLowerCase().includes(q);
+      });
+
       return matchName || matchLocation || matchPrefix || matchBrand;
     });
-  }, [sites, searchQuery]);
+  }, [sites, allBrands, searchQuery, statusFilter]);
 
-  const openCreate = () => { setModalSite(null); setShowModal(true); };
-  const openEdit = (site: Site) => { setModalSite(site); setShowModal(true); };
+  const openCreate = () => {
+    setModalSite(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (site: Site) => {
+    setModalSite(site);
+    setShowModal(true);
+  };
 
   const handleSaved = (saved: Site) => {
     setSites((prev) => {
       const idx = prev.findIndex((s) => s.id === saved.id);
-      if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = saved;
+        return next;
+      }
       return [saved, ...prev];
     });
     setShowModal(false);
-    showToast(modalSite ? 'Site updated successfully.' : 'New site created.');
+    showToast(modalSite ? 'Rooftop updated successfully.' : 'New rooftop created successfully.', 'success');
   };
 
   const handleDeactivate = async (site: Site) => {
-    if (!confirm(`Deactivate "${site.name}"? Technicians will no longer see this rooftop.`)) return;
+    if (!confirm(`Deactivate "${site.name}"? Technicians will no longer see this rooftop for new RO captures.`)) return;
     setDeactivating(site.id);
     try {
       await api.deactivateSite(site.id);
       setSites((prev) => prev.map((s) => (s.id === site.id ? { ...s, isActive: false } : s)));
-      showToast(`${site.name} deactivated.`);
+      showToast(`${site.name} deactivated.`, 'info');
     } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : 'Deactivate failed', 'error');
+      showToast(e instanceof Error ? e.message : 'Deactivation failed', 'error');
     } finally {
       setDeactivating(null);
     }
@@ -186,102 +292,330 @@ export default function SitesPage() {
     try {
       const updated = await api.updateSite(site.id, { isActive: true });
       setSites((prev) => prev.map((s) => (s.id === site.id ? updated : s)));
-      showToast(`${site.name} reactivated.`);
+      showToast(`${site.name} reactivated.`, 'success');
     } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : 'Reactivate failed', 'error');
+      showToast(e instanceof Error ? e.message : 'Reactivation failed', 'error');
     }
   };
 
   return (
     <div className="flex-1 flex flex-col pb-12">
-      <Header title="Dealership Sites & Rooftops" subtitle="Manage Booran rooftop locations, authorized OEM franchises and RO prefixes" />
+      <Header
+        title="Dealership Sites & Rooftops"
+        subtitle="Manage Booran rooftop locations, authorized OEM franchises, and Repair Order prefix namespaces"
+      />
+
       <div className="p-8 max-w-7xl mx-auto w-full space-y-6">
-        <div className="glass-card-static p-4 border border-[#1a56db]/20 flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[280px]">
-            <input type="text" placeholder="Search by rooftop name, location, prefix (e.g. DAN-), or brand (e.g. BYD, Kia)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-9 pr-8 text-xs w-full" />
-            <svg className="w-4 h-4 absolute left-3 top-3 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        {/* Metric KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all hover:border-slate-300">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Sites</span>
+              <div className="w-8 h-8 rounded-lg bg-red-50 text-[#E11F26] flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-900">{sites.length}</span>
+              <span className="text-xs font-bold text-slate-500">dealership rooftops</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-[#64748b]"><strong className="text-white">{filteredSites.length}</strong> of <strong className="text-white">{sites.length}</strong> rooftops</span>
-            <button onClick={openCreate} className="btn-primary text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-2">+ New Site</button>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all hover:border-slate-300">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Operations</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-900">{activeSites.length}</span>
+              <span className="text-xs font-bold text-emerald-600">live across VIC</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all hover:border-slate-300">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">OEM Brands Linked</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-900">{allBrands.length}</span>
+              <span className="text-xs font-bold text-slate-500">OEM franchises</span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all hover:border-slate-300">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inactive Rooftops</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-900">{inactiveSites.length}</span>
+              <span className="text-xs font-bold text-slate-500">archived</span>
+            </div>
           </div>
         </div>
 
+        {/* Toolbar: Search, Status Filter & Actions */}
+        <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 min-w-[280px]">
+            <input
+              type="text"
+              placeholder="Search by rooftop name, address, prefix (e.g. CR-, DAN-), or OEM brand..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field pl-9 pr-8 text-xs w-full"
+            />
+            <svg
+              className="w-4 h-4 absolute left-3 top-3 text-slate-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm cursor-pointer"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              {[
+                { id: 'ALL', label: 'All' },
+                { id: 'ACTIVE', label: `Active (${activeSites.length})` },
+                { id: 'INACTIVE', label: `Inactive (${inactiveSites.length})` },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    statusFilter === tab.id
+                      ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={openCreate}
+              className="btn-primary text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-2 cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>New Site</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Results Counter */}
+        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+          <span>
+            Showing <strong className="text-slate-900">{filteredSites.length}</strong> of{' '}
+            <strong className="text-slate-900">{sites.length}</strong> dealership rooftops
+          </span>
+          {(searchQuery || statusFilter !== 'ALL') && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('ALL');
+              }}
+              className="text-[#E11F26] hover:underline font-semibold cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+
+        {/* Sites Grid */}
         {loading ? (
-          <div className="py-16 text-center text-xs text-[#64748b]">Loading dealership sites...</div>
+          <div className="py-20 text-center text-xs text-slate-500 bg-white border border-slate-200 rounded-2xl">
+            <div className="w-8 h-8 border-2 border-[#E11F26]/20 border-t-[#E11F26] rounded-full animate-spin mx-auto mb-3" />
+            <span>Loading dealership sites & rooftops...</span>
+          </div>
         ) : filteredSites.length === 0 ? (
-          <div className="glass-card-static p-12 text-center border border-[#1a56db]/20">
+          <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
             <div className="max-w-xs mx-auto space-y-3">
-              <p className="text-sm font-semibold text-white">No dealership sites found</p>
-              <p className="text-xs text-[#64748b]">{searchQuery ? `No rooftop matched "${searchQuery}".` : 'No sites exist yet. Create your first rooftop.'}</p>
+              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <p className="text-sm font-bold text-slate-900">No dealership sites found</p>
+              <p className="text-xs text-slate-500">
+                {searchQuery
+                  ? `No rooftop matched "${searchQuery}". Try a different keyword or prefix.`
+                  : 'No dealership sites configured yet. Register your first rooftop location.'}
+              </p>
               {searchQuery ? (
-                <button onClick={() => setSearchQuery('')} className="text-xs font-semibold text-[#00f0ff] hover:underline">Clear search</button>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-xs font-semibold text-[#E11F26] hover:underline cursor-pointer"
+                >
+                  Clear search
+                </button>
               ) : (
-                <button onClick={openCreate} className="btn-primary text-xs px-4 py-2 rounded-xl font-bold">+ New Site</button>
+                <button
+                  onClick={openCreate}
+                  className="btn-primary text-xs px-4 py-2 rounded-xl font-bold cursor-pointer"
+                >
+                  + New Site
+                </button>
               )}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredSites.map((site) => (
-              <div key={site.id} className={`glass-card p-6 border transition-all space-y-4 ${site.isActive === false ? 'border-[#1a56db]/10 opacity-60' : 'border-[#1a56db]/20 hover:border-[#00f0ff]/40'}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-extrabold text-white truncate">{site.name}</h3>
-                    <p className="text-xs text-[#cbd5e1]/70 mt-0.5 truncate">{site.location}</p>
-                  </div>
-                  <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${site.isActive === false ? 'bg-red-500/20 text-red-400' : 'bg-[#10b981]/20 text-[#10b981]'}`}>
-                    {site.isActive === false ? 'Inactive' : 'Active'}
-                  </span>
-                </div>
-                <div className="space-y-2 pt-2 border-t border-[#1a56db]/10 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-[#64748b]">RO Prefix:</span>
-                    <strong className="font-mono text-[#00f0ff]">{site.roPrefix}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[#64748b] block mb-1.5">Authorized OEM Brands:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(site.authorizedBrandIds ?? []).length === 0 ? (
-                        <span className="text-[#64748b] italic">None linked</span>
-                      ) : (
-                        (site.authorizedBrandIds ?? []).map((bid) => (
-                          <span key={bid} className="px-2 py-0.5 rounded bg-[#132952] text-white font-medium text-[11px]">{brandLabel(bid)}</span>
-                        ))
-                      )}
+            {filteredSites.map((site) => {
+              const isInactive = site.isActive === false;
+              return (
+                <div
+                  key={site.id}
+                  className={`bg-white border rounded-2xl p-6 shadow-sm transition-all duration-200 flex flex-col justify-between ${
+                    isInactive
+                      ? 'border-slate-200 opacity-60'
+                      : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                  }`}
+                >
+                  <div className="space-y-4">
+                    {/* Top Header */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 text-[#E11F26] flex items-center justify-center shrink-0">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-slate-900 truncate tracking-tight">
+                            {site.name}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="truncate">{site.location}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                          isInactive
+                            ? 'bg-slate-100 text-slate-600 border-slate-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}
+                      >
+                        {isInactive ? 'Inactive' : 'Active'}
+                      </span>
+                    </div>
+
+                    {/* Metadata & RO Prefix */}
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                      <span className="text-slate-600 font-medium">RO Prefix Namespace:</span>
+                      <span className="font-mono font-bold text-xs bg-red-50 text-[#E11F26] border border-red-200 px-2.5 py-1 rounded-md">
+                        {site.roPrefix || 'N/A'}
+                      </span>
+                    </div>
+
+                    {/* Authorized Brands */}
+                    <div className="space-y-1.5 text-xs">
+                      <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
+                        Authorized OEM Franchises
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {(site.authorizedBrandIds ?? []).length === 0 ? (
+                          <span className="text-slate-400 italic text-xs">No OEM brands linked yet</span>
+                        ) : (
+                          (site.authorizedBrandIds ?? []).map((bid) => (
+                            <span
+                              key={bid}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-semibold text-xs shadow-2xs"
+                            >
+                              {brandLabel(bid, allBrands)}
+                            </span>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-[#1a56db]/10">
-                  <button onClick={() => openEdit(site)} className="flex-1 text-xs py-1.5 rounded-lg font-semibold border border-[#1a56db]/30 text-[#94a3b8] hover:border-[#00f0ff]/50 hover:text-white transition-colors">
-                    ✏️ Edit & Brands
-                  </button>
-                  {site.isActive === false ? (
-                    <button onClick={() => handleReactivate(site)} className="flex-1 text-xs py-1.5 rounded-lg font-semibold border border-[#10b981]/30 text-[#10b981] hover:bg-[#10b981]/10 transition-colors">
-                      ↩ Reactivate
+
+                  {/* Actions Bar */}
+                  <div className="flex items-center gap-2 pt-5 mt-5 border-t border-slate-100">
+                    <button
+                      onClick={() => openEdit(site)}
+                      className="flex-1 btn-ghost text-xs py-2 rounded-xl font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Edit & Brands</span>
                     </button>
-                  ) : (
-                    <button onClick={() => handleDeactivate(site)} disabled={deactivating === site.id} className="flex-1 text-xs py-1.5 rounded-lg font-semibold border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50">
-                      {deactivating === site.id ? '...' : 'Deactivate'}
-                    </button>
-                  )}
+
+                    {isInactive ? (
+                      <button
+                        onClick={() => handleReactivate(site)}
+                        className="flex-1 text-xs py-2 rounded-xl font-semibold border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span>Reactivate</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDeactivate(site)}
+                        disabled={deactivating === site.id}
+                        className="flex-1 text-xs py-2 rounded-xl font-semibold border border-red-200 text-red-600 bg-white hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {deactivating === site.id ? 'Deactivating...' : 'Deactivate'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {showModal && (
-        <SiteModal allBrands={allBrands.filter((b) => b.isActive !== false)} site={modalSite} onClose={() => setShowModal(false)} onSaved={handleSaved} />
-      )}
-
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-[100] px-4 py-3 rounded-xl text-sm font-semibold shadow-xl border transition-all ${toast.type === 'success' ? 'bg-[#10b981]/20 border-[#10b981]/40 text-[#10b981]' : 'bg-red-500/20 border-red-500/40 text-red-400'}`}>
-          {toast.msg}
-        </div>
+        <SiteModal
+          allBrands={allBrands.filter((b) => b.isActive !== false)}
+          site={modalSite}
+          onClose={() => setShowModal(false)}
+          onSaved={handleSaved}
+        />
       )}
     </div>
   );

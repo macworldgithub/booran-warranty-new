@@ -319,8 +319,8 @@ export default function DashboardPage() {
     try {
       const params: any = { flaggedOnly: true };
       if (siteId) params.siteId = siteId;
-      const data = await api.getWarrantyCases(params);
-      setFlaggedCases(data);
+      const res = await api.getWarrantyCases(params);
+      setFlaggedCases(res.data || (res as any));
     } catch (err) {
       console.error('Failed to load flagged cases:', err);
       setFlaggedCases([]);
