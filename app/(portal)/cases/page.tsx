@@ -5,13 +5,24 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '../../../components/header';
 import { StatusBadge } from '../../../components/status-badge';
+import { Pagination } from '../../../components/pagination';
 import { api } from '../../../lib/api';
-import { WarrantyCase, CaseStatus } from '../../../lib/types';
+import { WarrantyCase, CaseStatus, PaginationMeta } from '../../../lib/types';
 
 export default function CasesPage() {
   const searchParams = useSearchParams();
   const [cases, setCases] = useState<WarrantyCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta>({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [brandFilter, setBrandFilter] = useState<string>('ALL');
@@ -52,25 +63,45 @@ export default function CasesPage() {
   }, []);
 
   useEffect(() => {
-    if (initializedFromUrl) loadCases();
+    if (initializedFromUrl) {
+      setPage(1);
+      loadCases(1, limit);
+    }
   }, [statusFilter, brandFilter, siteFilter, flaggedOnly, userRole, userName, ruleFilter, initializedFromUrl]);
 
-  async function loadCases() {
+  // Debounce search query to search server-side
+  useEffect(() => {
+    if (!initializedFromUrl) return;
+    const timer = setTimeout(() => {
+      setPage(1);
+      loadCases(1, limit, searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  async function loadCases(p = page, l = limit, search = searchQuery) {
     setLoading(true);
     try {
-      const params: any = {};
+      const params: any = {
+        page: p,
+        limit: l,
+      };
       if (statusFilter !== 'ALL') params.status = statusFilter;
       if (brandFilter !== 'ALL') params.brandId = brandFilter;
       if (siteFilter !== 'ALL') params.siteId = siteFilter;
       if (flaggedOnly) params.flaggedOnly = true;
+      if (search?.trim()) params.search = search.trim();
 
       if (userRole === 'TECHNICIAN') {
         if (userId) params.technicianId = userId;
         if (userName) params.technicianName = userName;
       }
 
-      const data = await api.getWarrantyCases(params);
-      setCases(data);
+      const res = await api.getWarrantyCases(params);
+      setCases(res.data || (res as any));
+      if (res.meta) {
+        setMeta(res.meta);
+      }
     } catch (err) {
       console.error('Failed to load cases:', err);
     } finally {
@@ -152,7 +183,7 @@ export default function CasesPage() {
         }
       />
 
-      <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
         {/* Urgent Retake Action Banner for Technicians (Spec §6, §8.3) */}
         {flaggedCases.length > 0 && userRole === 'TECHNICIAN' && (
           <div className="p-5 rounded-2xl bg-red-50 border-2 border-[#E11F26] shadow-sm flex flex-wrap items-center justify-between gap-4 animate-slideInLeft">
@@ -281,7 +312,7 @@ export default function CasesPage() {
                 <span>Flagged Only</span>
               </button>
               <button
-                onClick={loadCases}
+                onClick={() => loadCases(page, limit)}
                 className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-colors shadow-xs cursor-pointer"
                 title="Refresh"
               >
@@ -315,8 +346,8 @@ export default function CasesPage() {
         {/* Cases Results Counter */}
         <div className="flex items-center justify-between text-xs text-slate-500 px-1">
           <span>
-            Showing <strong className="text-slate-900 font-bold">{filteredCases.length}</strong> of{' '}
-            <strong className="text-slate-900 font-bold">{cases.length}</strong> cases
+            Showing <strong className="text-slate-900 font-bold">{Math.min(page * limit, meta.total || cases.length)}</strong> of{' '}
+            <strong className="text-slate-900 font-bold">{meta.total || cases.length}</strong> cases
           </span>
           {(searchQuery || statusFilter !== 'ALL' || brandFilter !== 'ALL' || siteFilter !== 'ALL' || flaggedOnly || ruleFilter) && (
             <button
@@ -353,156 +384,175 @@ export default function CasesPage() {
               <p className="text-xs text-slate-500">Try clearing your search filters or start a new repair ticket.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-bold">
-                  <tr>
-                    <th className="py-3.5 px-4">RO & Claim #</th>
-                    <th className="py-3.5 px-4">Vehicle & VIN</th>
-                    <th className="py-3.5 px-4">Fault Concern</th>
-                    <th className="py-3.5 px-4">Site / Brand</th>
-                    <th className="py-3.5 px-4">Technician</th>
-                    <th className="py-3.5 px-4 text-center">Gates Progress</th>
-                    <th className="py-3.5 px-4 text-center">Status</th>
-                    <th className="py-3.5 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredCases.map((c) => {
-                    const completed = c.checklistSummary?.completedMandatory ?? 0;
-                    const total = c.checklistSummary?.totalMandatory ?? 1;
-                    const gatePercent = Math.round((completed / (total || 1)) * 100);
-                    const year = c.year ?? c.vehicle?.year ?? '';
-                    const make = c.make ?? c.vehicle?.make ?? '';
-                    const model = c.model ?? c.vehicle?.model ?? '';
-                    const vin = c.vin ?? c.vehicle?.vin ?? '';
-                    const concern = c.concernTitle ?? c.concern?.title ?? '';
-                    const faultCat = c.faultCategory ?? c.concern?.faultCategory ?? '';
+            <>
+              <div className="divide-y divide-slate-100 bg-white">
+                {filteredCases.map((c) => {
+                  const completed = c.checklistSummary?.completedMandatory ?? 0;
+                  const total = c.checklistSummary?.totalMandatory ?? 1;
+                  const gatePercent = Math.round((completed / (total || 1)) * 100);
+                  const year = c.year ?? c.vehicle?.year ?? '';
+                  const make = c.make ?? c.vehicle?.make ?? '';
+                  const model = c.model ?? c.vehicle?.model ?? '';
+                  const vin = c.vin ?? c.vehicle?.vin ?? '';
+                  const concern = c.concernTitle ?? c.concern?.title ?? '';
+                  const faultCat = c.faultCategory ?? c.concern?.faultCategory ?? '';
 
-                    return (
-                      <tr
-                        key={c.id}
-                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                      >
-                        <td className="py-3.5 px-4">
-                          <Link href={`/cases/${c.id}`} className="block">
-                            <span className="font-mono font-bold text-slate-900 group-hover:text-[#E11F26] transition-colors">
+                  return (
+                    <div
+                      key={c.id}
+                      className="p-4 sm:p-5 hover:bg-slate-50/90 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+                    >
+                      {/* Left: Key Identifiers, Vehicle & Concern */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Top Line: RO Number, Status Badge, Action Required, Claim #, Brand & Site */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <Link href={`/cases/${c.id}`}>
+                            <span className="font-mono font-black text-sm text-slate-900 group-hover:text-[#E11F26] transition-colors">
                               {c.roNumber}
                             </span>
-                            {c.claimNumber ? (
-                              <p className="text-[10px] text-emerald-600 font-mono font-semibold mt-0.5">OEM: {c.claimNumber}</p>
-                            ) : (
-                              <p className="text-[10px] text-slate-400 mt-0.5">Unsubmitted</p>
-                            )}
                           </Link>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <Link href={`/cases/${c.id}`} className="block">
-                            <p className="font-bold text-slate-900 truncate max-w-[180px]">
-                              {year} {make} {model}
-                            </p>
-                            <p className="font-mono text-[10px] text-slate-400 tracking-wider truncate max-w-[180px]">
-                              {vin}
-                            </p>
-                          </Link>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <Link href={`/cases/${c.id}`} className="block">
-                            <p className="font-medium text-slate-800 truncate max-w-[220px]" title={concern}>
-                              {concern}
-                            </p>
-                            {faultCat && (
-                              <span className="text-[10px] font-mono text-slate-600 border border-slate-200 bg-slate-50 inline-block mt-0.5 px-1.5 py-0.5 rounded">
-                                {faultCat}
-                              </span>
-                            )}
-                          </Link>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <p className="font-bold text-slate-900">{c.brandName}</p>
-                          <p className="text-[10px] text-slate-500 truncate max-w-[120px]">{c.siteName}</p>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <p className="font-semibold text-slate-900">{c.technicianName}</p>
-                          <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5 whitespace-nowrap">
-                            <span>
-                              {new Date(c.createdAt).toLocaleDateString('en-AU', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                              })}
-                            </span>
-                            <span>·</span>
-                            <span className="text-slate-800 font-mono font-bold">
-                              {new Date(c.createdAt).toLocaleTimeString('en-AU', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false,
-                              })}
-                            </span>
-                          </p>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <div className="inline-flex flex-col items-center gap-1 w-24">
-                            <div className="flex items-center justify-between w-full text-[10px] font-mono">
-                              <span className="text-[#E11F26] font-bold">
-                                {completed}/{total}
-                              </span>
-                              <span className="text-slate-500 font-semibold">{gatePercent}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                              <div
-                                className={`h-full rounded-full ${
-                                  gatePercent === 100
-                                    ? 'bg-emerald-500'
-                                    : gatePercent > 50
-                                    ? 'bg-[#E11F26]'
-                                    : 'bg-amber-500'
-                                }`}
-                                style={{ width: `${gatePercent}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
+
                           <StatusBadge status={c.status} size="sm" />
+
                           {c.status === 'Flagged' && (
-                            <span className="block text-[10px] text-[#E11F26] font-mono font-bold mt-1">
+                            <span className="px-2 py-0.5 rounded-full bg-red-100 text-[#E11F26] font-mono text-[10px] font-bold">
                               Action Required
                             </span>
                           )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
+
+                          {c.claimNumber ? (
+                            <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
+                              OEM: {c.claimNumber}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-mono">Unsubmitted</span>
+                          )}
+
+                          <span className="text-slate-300 hidden sm:inline">•</span>
+                          <span className="font-bold text-slate-800">{c.brandName}</span>
+                          <span className="text-slate-500 font-medium">({c.siteName})</span>
+                        </div>
+
+                        {/* Middle Line: Vehicle & Fault Concern */}
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+                          <span className="font-bold text-slate-900">
+                            {year} {make} {model}
+                          </span>
+                          <span className="font-mono text-slate-400 text-[11px] tracking-wide">
+                            {vin}
+                          </span>
+                          <span className="text-slate-300 hidden sm:inline">•</span>
+                          <span className="text-slate-700 font-medium truncate max-w-lg" title={concern}>
+                            {concern}
+                          </span>
+                          {faultCat && (
+                            <span className="text-[10px] font-mono text-slate-600 border border-slate-200 bg-slate-50 px-2 py-0.5 rounded truncate max-w-xs" title={faultCat}>
+                              {faultCat}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bottom Line: Technician & Timestamp */}
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                          <span>
+                            Tech: <strong className="text-slate-700 font-semibold">{c.technicianName}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            {new Date(c.createdAt).toLocaleDateString('en-AU', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}{' '}
+                            at{' '}
+                            {new Date(c.createdAt).toLocaleTimeString('en-AU', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Gates Progress & Single-Line Action Button */}
+                      <div className="flex items-center gap-5 shrink-0 justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+                        {/* Gates Progress */}
+                        <div className="flex flex-col gap-1 w-28">
+                          <div className="flex items-center justify-between text-[11px] font-mono">
+                            <span className="text-slate-500 font-medium">Gates:</span>
+                            <span className="text-slate-900 font-bold">
+                              <span className="text-[#E11F26]">{completed}</span>/{total} ({gatePercent}%)
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                gatePercent === 100
+                                  ? 'bg-emerald-500'
+                                  : gatePercent > 50
+                                  ? 'bg-[#E11F26]'
+                                  : 'bg-amber-500'
+                              }`}
+                              style={{ width: `${gatePercent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Action Button */}
+                        <div className="shrink-0">
                           {c.status === 'Flagged' && userRole === 'TECHNICIAN' ? (
                             <Link
                               href={`/cases/${c.id}?retake=true`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs transition-all shadow-sm"
+                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs whitespace-nowrap transition-all shadow-sm shrink-0"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                               </svg>
-                              <span>Retake Photo</span>
+                              <span className="whitespace-nowrap">Retake Photo</span>
                             </Link>
                           ) : (
                             <Link
                               href={`/cases/${c.id}`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white hover:bg-[#E11F26] text-slate-700 hover:text-white font-bold text-xs transition-all border border-slate-300 hover:border-[#E11F26] shadow-xs"
+                              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all border shadow-xs shrink-0 ${
+                                c.status === 'Flagged'
+                                  ? 'bg-red-50 hover:bg-[#E11F26] text-[#E11F26] hover:text-white border-red-200 hover:border-[#E11F26]'
+                                  : 'bg-white hover:bg-[#E11F26] text-slate-700 hover:text-white border-slate-300 hover:border-[#E11F26]'
+                              }`}
                             >
-                              <span>{c.status === 'Flagged' ? 'View Flags' : 'Review'}</span>
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <span className="whitespace-nowrap">{c.status === 'Flagged' ? 'View Flags' : 'Review'}</span>
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                               </svg>
                             </Link>
                           )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            {!loading && meta && meta.total > 0 && (
+              <Pagination
+                currentPage={meta.page}
+                totalPages={meta.totalPages}
+                totalItems={meta.total}
+                itemsPerPage={limit}
+                isLoading={loading}
+                onPageChange={(newPage) => {
+                  setPage(newPage);
+                  loadCases(newPage, limit);
+                }}
+                onItemsPerPageChange={(newLimit) => {
+                  setLimit(newLimit);
+                  setPage(1);
+                  loadCases(1, newLimit);
+                }}
+              />
+            )}
+          </>
+        )}
+      </div>
       </div>
     </div>
   );

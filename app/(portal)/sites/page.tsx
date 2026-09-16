@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Header } from '../../../components/header';
+import { Pagination } from '../../../components/pagination';
 import { useToast } from '../../../components/toast';
 import { api } from '../../../lib/api';
 import { Site, Brand } from '../../../lib/types';
@@ -208,6 +209,8 @@ export default function SitesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(6);
   const [modalSite, setModalSite] = useState<Site | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deactivating, setDeactivating] = useState<string | null>(null);
@@ -227,6 +230,11 @@ export default function SitesPage() {
     }
     load();
   }, [showToast]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
 
   const activeSites = useMemo(() => sites.filter((s) => s.isActive !== false), [sites]);
   const inactiveSites = useMemo(() => sites.filter((s) => s.isActive === false), [sites]);
@@ -249,6 +257,11 @@ export default function SitesPage() {
       return matchName || matchLocation || matchPrefix || matchBrand;
     });
   }, [sites, allBrands, searchQuery, statusFilter]);
+
+  const paginatedSites = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredSites.slice(start, start + limit);
+  }, [filteredSites, page, limit]);
 
   const openCreate = () => {
     setModalSite(null);
@@ -440,8 +453,8 @@ export default function SitesPage() {
         {/* Results Counter */}
         <div className="flex items-center justify-between text-xs text-slate-500 px-1">
           <span>
-            Showing <strong className="text-slate-900">{filteredSites.length}</strong> of{' '}
-            <strong className="text-slate-900">{sites.length}</strong> dealership rooftops
+            Showing <strong className="text-slate-900 font-bold">{Math.min(page * limit, filteredSites.length)}</strong> of{' '}
+            <strong className="text-slate-900 font-bold">{filteredSites.length}</strong> dealership rooftops
           </span>
           {(searchQuery || statusFilter !== 'ALL') && (
             <button
@@ -495,7 +508,7 @@ export default function SitesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {filteredSites.map((site) => {
+            {paginatedSites.map((site) => {
               const isInactive = site.isActive === false;
               return (
                 <div
@@ -519,43 +532,55 @@ export default function SitesPage() {
                           <h3 className="text-base font-bold text-slate-900 truncate tracking-tight">
                             {site.name}
                           </h3>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                            <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span className="truncate">{site.location}</span>
-                          </div>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">{site.location}</p>
                         </div>
                       </div>
 
                       <span
-                        className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
                           isInactive
-                            ? 'bg-slate-100 text-slate-600 border-slate-200'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         }`}
                       >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isInactive ? 'bg-slate-400' : 'bg-emerald-500'}`} />
                         {isInactive ? 'Inactive' : 'Active'}
                       </span>
                     </div>
 
-                    {/* Metadata & RO Prefix */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-                      <span className="text-slate-600 font-medium">RO Prefix Namespace:</span>
-                      <span className="font-mono font-bold text-xs bg-red-50 text-[#E11F26] border border-red-200 px-2.5 py-1 rounded-md">
-                        {site.roPrefix || 'N/A'}
-                      </span>
+                    {/* Metadata Badges */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                          Site Code / ID
+                        </span>
+                        <span className="font-mono font-semibold text-slate-700">{site.id}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                          RO Prefix Namespace
+                        </span>
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[11px] inline-block border border-slate-200">
+                          {site.roPrefix}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Authorized Brands */}
-                    <div className="space-y-1.5 text-xs">
-                      <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
-                        Authorized OEM Franchises
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
+                    {/* Authorized Franchises */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                          Authorized Franchises
+                        </span>
+                        <span className="text-slate-500 text-[10px] font-semibold">
+                          {(site.authorizedBrandIds ?? []).length} Brands
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
                         {(site.authorizedBrandIds ?? []).length === 0 ? (
-                          <span className="text-slate-400 italic text-xs">No OEM brands linked yet</span>
+                          <span className="text-xs text-amber-600 italic bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                            ⚠ No OEM brands linked yet
+                          </span>
                         ) : (
                           (site.authorizedBrandIds ?? []).map((bid) => (
                             <span
@@ -605,6 +630,24 @@ export default function SitesPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {!loading && filteredSites.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(filteredSites.length / limit) || 1}
+              totalItems={filteredSites.length}
+              itemsPerPage={limit}
+              itemsPerPageOptions={[6, 12, 24, 48]}
+              isLoading={loading}
+              onPageChange={setPage}
+              onItemsPerPageChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
           </div>
         )}
       </div>

@@ -62,8 +62,7 @@ export function Pagination({
       {/* Items Range & Total */}
       <div className="flex items-center gap-4 text-xs text-slate-600">
         <div>
-          Showing <span className="font-bold text-slate-900">{startItem}</span> to{' '}
-          <span className="font-bold text-slate-900">{endItem}</span> of{' '}
+          Showing <span className="font-bold text-slate-900">{endItem}</span> of{' '}
           <span className="font-bold text-slate-900">{totalItems}</span> cases
         </div>
 

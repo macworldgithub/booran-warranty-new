@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Header } from '../../../components/header';
+import { Pagination } from '../../../components/pagination';
 import { api } from '../../../lib/api';
 import { UserProfile } from '../../../lib/types';
 
@@ -10,6 +11,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   useEffect(() => {
     async function load() {
@@ -39,6 +42,16 @@ export default function UsersPage() {
       return matchName || matchEmail || matchRole || matchSite;
     });
   }, [users, searchQuery, roleFilter]);
+
+  // Reset to page 1 on filter or search change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, roleFilter]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredUsers.slice(start, start + limit);
+  }, [filteredUsers, page, limit]);
 
   const roleCounts = useMemo(() => {
     const counts: Record<string, number> = { ALL: users.length };
@@ -128,8 +141,8 @@ export default function UsersPage() {
         {/* Results Info Bar */}
         <div className="flex items-center justify-between text-xs text-slate-500 px-1">
           <span>
-            Showing <strong className="text-slate-900">{filteredUsers.length}</strong> of{' '}
-            <strong className="text-slate-900">{users.length}</strong> users
+            Showing <strong className="text-slate-900 font-bold">{Math.min(page * limit, filteredUsers.length)}</strong> of{' '}
+            <strong className="text-slate-900 font-bold">{filteredUsers.length}</strong> users
           </span>
           {(searchQuery || roleFilter !== 'ALL') && (
             <button
@@ -185,7 +198,7 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
+                paginatedUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-slate-900">{u.name}</td>
                     <td className="py-3.5 px-4 text-slate-700 font-mono">{u.email}</td>
@@ -205,6 +218,21 @@ export default function UsersPage() {
               )}
             </tbody>
           </table>
+
+          {!loading && filteredUsers.length > 0 && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(filteredUsers.length / limit) || 1}
+              totalItems={filteredUsers.length}
+              itemsPerPage={limit}
+              isLoading={loading}
+              onPageChange={setPage}
+              onItemsPerPageChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
