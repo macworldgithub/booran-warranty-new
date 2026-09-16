@@ -20,6 +20,11 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Registration OTP State
+  const [isOtpStep, setIsOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [devOtpBadge, setDevOtpBadge] = useState<string | null>(null);
+
   // Clear any stale tokens when landing on login page
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -33,6 +38,15 @@ export default function LoginPage() {
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
     setErrorMsg(null);
+  };
+
+  const handleModeSwitch = (mode: 'signin' | 'signup') => {
+    setAuthMode(mode);
+    setIsOtpStep(false);
+    setOtpCode('');
+    setDevOtpBadge(null);
+    setErrorMsg(null);
+    setSuccessMsg(null);
   };
 
   const saveAuthSession = (user: any, token?: string) => {
@@ -49,51 +63,97 @@ export default function LoginPage() {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!name.trim()) throw new Error('Please enter your full name');
+    if (!email.trim() || !email.includes('@')) throw new Error('Please enter a valid work email address');
+    if (!password.trim() || password.length < 6) throw new Error('Password must be at least 6 characters');
+
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await api.auth.sendRegistrationOtp({
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+      });
+
+      setIsOtpStep(true);
+      if (res.devOtp) {
+        setDevOtpBadge(res.devOtp);
+        setOtpCode(res.devOtp);
+      }
+      setSuccessMsg(`Verification code sent to ${email.trim().toLowerCase()}`);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Unable to send verification code. Please check your email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtpAndCreate = async () => {
+    if (!otpCode.trim() || otpCode.trim().length < 4) {
+      throw new Error('Please enter the 6-digit verification code.');
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const response = await api.auth.verifyRegistrationOtp({
+        email: email.trim().toLowerCase(),
+        otp: otpCode.trim(),
+        name: name.trim(),
+        password: password.trim(),
+        role: selectedRole,
+        siteId: selectedSite,
+      });
+
+      saveAuthSession(response.user, response.accessToken);
+      setSuccessMsg('Account verified and created successfully! Redirecting...');
+      setTimeout(() => {
+        router.replace(selectedRole === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
+      }, 800);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Verification failed. Please check the code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
-    setLoading(true);
 
-    try {
-      if (authMode === 'signin') {
-        // Validate inputs before hitting the API
-        if (!email.trim()) throw new Error('Please enter your work email address.');
-        if (!password.trim()) throw new Error('Please enter your password.');
-
-        // Call the backend - no fallback. Errors surface directly to the user.
-        const response = await api.auth.login({
-          email: email.trim().toLowerCase(),
-          password: password.trim(),
-          role: selectedRole,
-        });
-
-        if (!response || !response.user) {
-          throw new Error('Authentication failed. Please check your credentials and try again.');
-        }
-
-        saveAuthSession(response.user, response.accessToken);
-        router.replace(response.user.role === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
+    if (authMode === 'signup') {
+      if (isOtpStep) {
+        await handleVerifyOtpAndCreate();
       } else {
-        // Sign Up Mode
-        if (!name.trim()) throw new Error('Please enter your full name');
-        if (!email.trim() || !email.includes('@')) throw new Error('Please enter a valid work email address');
-        if (!password.trim() || password.length < 6) throw new Error('Password must be at least 6 characters');
-
-        const response = await api.auth.signup({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          password: password.trim(),
-          role: selectedRole,
-          siteId: selectedSite,
-        });
-
-        saveAuthSession(response.user, response.accessToken);
-        setSuccessMsg('Account registered successfully! Redirecting...');
-        setTimeout(() => {
-          router.replace(selectedRole === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
-        }, 800);
+        await handleSendOtp();
       }
+      return;
+    }
+
+    // Sign In Mode
+    setLoading(true);
+    try {
+      if (!email.trim()) throw new Error('Please enter your work email address.');
+      if (!password.trim()) throw new Error('Please enter your password.');
+
+      const response = await api.auth.login({
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+        role: selectedRole,
+      });
+
+      if (!response || !response.user) {
+        throw new Error('Authentication failed. Please check your credentials and try again.');
+      }
+
+      saveAuthSession(response.user, response.accessToken);
+      router.replace(response.user.role === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {
@@ -118,234 +178,256 @@ export default function LoginPage() {
           <div className="flex justify-center mb-3">
             <img
               src="/booran-motors-transparent.png"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/booran-motors-black.png';
-              }}
               alt="Booran Motors"
-              className="h-14 sm:h-16 w-auto object-contain mix-blend-multiply"
+              className="h-10 w-auto object-contain"
             />
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center gap-2">
-            <span>Warranty Evidence & Review Portal</span>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            Warranty Claim Portal
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Since 1965 · Multi-Brand Workshop Evidence & Audit Review
+          <p className="text-xs text-slate-700 mt-1 max-w-xs mx-auto">
+            Audit-Proof Evidence Collection & Compliance Engine
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.06)] p-6 sm:p-8">
-          {/* Tab Switcher: Sign In vs Create Account */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 mb-6">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-900/5 backdrop-blur-xl">
+          {/* Mode Switcher */}
+          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-2xl mb-6 border border-slate-200">
             <button
               type="button"
-              onClick={() => {
-                setAuthMode('signin');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              onClick={() => handleModeSwitch('signin')}
+              className={`py-2 text-xs font-bold rounded-xl transition-all ${
                 authMode === 'signin'
-                  ? 'bg-white text-[#E11F26] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               Sign In
             </button>
             <button
               type="button"
-              onClick={() => {
-                setAuthMode('signup');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              onClick={() => handleModeSwitch('signup')}
+              className={`py-2 text-xs font-bold rounded-xl transition-all ${
                 authMode === 'signup'
-                  ? 'bg-white text-[#E11F26] shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-700 hover:text-slate-900'
               }`}
             >
-              Create Account
+              Register Account
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Role Selection (Radio Buttons) */}
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                Select Account Role
+          {/* Role Selector Tabs */}
+          {!isOtpStep && (
+            <div className="mb-6">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
+                Select Workspace Role
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Radio Option 1: ADMIN */}
-                <label
-                  onClick={() => handleRoleChange('ADMIN')}
-                  className={`relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    selectedRole === 'ADMIN'
-                      ? 'bg-red-50/70 border-[#E11F26] shadow-sm'
-                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'ADMIN' ? 'bg-red-100 text-[#E11F26]' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                      </div>
-                      <span className="font-bold text-sm text-slate-900">Admin / Clerk</span>
-                    </div>
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      selectedRole === 'ADMIN' ? 'border-[#E11F26] bg-[#E11F26]' : 'border-slate-400'
-                    }`}>
-                      {selectedRole === 'ADMIN' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    Portal audit, claims approval, rules engine & KPIs
-                  </p>
-                </label>
-
-                {/* Radio Option 2: TECHNICIAN */}
-                <label
-                  onClick={() => handleRoleChange('TECHNICIAN')}
-                  className={`relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    selectedRole === 'TECHNICIAN'
-                      ? 'bg-red-50/70 border-[#E11F26] shadow-sm'
-                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
-                        selectedRole === 'TECHNICIAN' ? 'bg-red-100 text-[#E11F26]' : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <span className="font-bold text-sm text-slate-900">Technician</span>
-                    </div>
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      selectedRole === 'TECHNICIAN' ? 'border-[#E11F26] bg-[#E11F26]' : 'border-slate-400'
-                    }`}>
-                      {selectedRole === 'TECHNICIAN' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    Guided RO capture, Voice-to-Tech & VIN OCR scanner
-                  </p>
-                </label>
-              </div>
-            </div>
-
-            {/* Sign Up: Full Name */}
-            {authMode === 'signup' && (
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder={selectedRole === 'ADMIN' ? 'e.g. Marcus Vance' : 'e.g. Jake Smith'}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                  />
-                  <div className="absolute right-3 top-2.5 text-slate-400">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Email Address */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                Work Email Address
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  placeholder={
-                    selectedRole === 'ADMIN' ? 'admin@booran.com.au' : 'technician@booran.com.au'
-                  }
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                />
-                <div className="absolute right-3 top-2.5 text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Sign Up: Dealership Rooftop */}
-            {authMode === 'signup' && (
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Dealership Rooftop
-                </label>
-                <select
-                  value={selectedSite}
-                  onChange={(e) => setSelectedSite(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                >
-                  <option value="site_cranbourne_byd">Booran BYD Cranbourne</option>
-                  <option value="site_dandenong_multi">Booran Dandenong Multi-Franchise</option>
-                  <option value="site_cheltenham_mg">Booran MG & Chery Cheltenham</option>
-                  <option value="site_berwick_toyota_ford">Booran Berwick Commercials</option>
-                </select>
-              </div>
-            )}
-
-            {/* Password */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  Password
-                </label>
-                {authMode === 'signin' && (
-                  <span className="text-[11px] text-[#E11F26] hover:underline cursor-pointer font-semibold">
-                    Default: Booran2026!
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                />
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  onClick={() => handleRoleChange('ADMIN')}
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                    selectedRole === 'ADMIN'
+                      ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
                 >
-                  {showPassword ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        selectedRole === 'ADMIN' ? 'bg-[#E11F26]' : 'bg-slate-300'
+                      }`}
+                    />
+                    <span className="font-bold text-xs text-slate-900">Warranty Admin</span>
+                  </div>
+                  <p className="text-[11px] text-slate-700">Full audit, packs, sites & review</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('TECHNICIAN')}
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                    selectedRole === 'TECHNICIAN'
+                      ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        selectedRole === 'TECHNICIAN' ? 'bg-[#E11F26]' : 'bg-slate-300'
+                      }`}
+                    />
+                    <span className="font-bold text-xs text-slate-900">Workshop Tech</span>
+                  </div>
+                  <p className="text-[11px] text-slate-700">Mobile camera & quick evidence capture</p>
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Main Auth Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* OTP Verification Step for Sign Up */}
+            {authMode === 'signup' && isOtpStep ? (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-slate-900">Email Verification Code</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsOtpStep(false)}
+                      className="text-xs text-[#E11F26] font-semibold hover:underline"
+                    >
+                      Change Details
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-600 mb-3">
+                    We sent a 6-digit verification code to <span className="font-semibold text-slate-900">{email}</span>
+                  </p>
+
+                  {devOtpBadge && (
+                    <div className="mb-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900">
+                      <span>Development Code:</span>
+                      <span className="font-mono font-bold text-sm text-[#E11F26]">{devOtpBadge}</span>
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="Enter 6-digit code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full text-center tracking-[0.3em] font-mono text-xl font-bold bg-white border border-slate-300 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Didn't receive code?</span>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleSendOtp}
+                    className="text-[#E11F26] font-semibold hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    Resend Code
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Full Name */}
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Full Name
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. David Miller"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                      />
+                      <div className="absolute right-3 top-2.5 text-slate-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Email Address */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Work Email Address
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      placeholder={
+                        selectedRole === 'ADMIN' ? 'admin@booran.com.au' : 'technician@booran.com.au'
+                      }
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                    />
+                    <div className="absolute right-3 top-2.5 text-slate-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sign Up: Dealership Rooftop */}
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Dealership Rooftop
+                    </label>
+                    <select
+                      value={selectedSite}
+                      onChange={(e) => setSelectedSite(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                    >
+                      <option value="site_cranbourne_byd">Booran BYD Cranbourne</option>
+                      <option value="site_dandenong_multi">Booran Dandenong Multi-Franchise</option>
+                      <option value="site_cheltenham_mg">Booran MG & Chery Cheltenham</option>
+                      <option value="site_berwick_toyota_ford">Booran Berwick Commercials</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Password */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                      Password
+                    </label>
+                    {authMode === 'signin' && (
+                      <span className="text-[11px] text-[#E11F26] hover:underline cursor-pointer font-semibold">
+                        Default: Booran2026!
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showPassword ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Error Message */}
             {errorMsg && (
@@ -379,11 +461,17 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>Authenticating...</span>
+                  <span>Processing...</span>
                 </>
               ) : (
                 <>
-                  <span>{authMode === 'signin' ? 'Sign In to Workspace' : 'Create Account & Launch'}</span>
+                  <span>
+                    {authMode === 'signin'
+                      ? 'Sign In to Workspace'
+                      : isOtpStep
+                      ? 'Verify Code & Create Account'
+                      : 'Send Verification Code'}
+                  </span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
