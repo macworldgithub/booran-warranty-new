@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '../../../../components/header';
@@ -202,6 +202,96 @@ export default function CaseDetailPage() {
   // Selected File for real upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
+
+  // Voice Note Dictation & Upload State
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSecs, setVoiceSecs] = useState(0);
+  const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null);
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string | null>(null);
+  const [voiceFile, setVoiceFile] = useState<File | null>(null);
+  const [voicePinnedRule, setVoicePinnedRule] = useState('');
+  const [voiceTranscriptInput, setVoiceTranscriptInput] = useState('');
+  const [voiceTranscribing, setVoiceTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<any>(null);
+
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
+        setVoiceBlob(audioBlob);
+        setVoiceAudioUrl(URL.createObjectURL(audioBlob));
+        stream.getTracks().forEach((t) => t.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoice(true);
+      setVoiceSecs(0);
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceSecs((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      showToast('Could not access microphone: ' + err.message, 'error');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecordingVoice) {
+      mediaRecorderRef.current.stop();
+      setIsRecordingVoice(false);
+    }
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+  };
+
+  const handleVoiceSubmit = async () => {
+    if (!caseId) return;
+    setVoiceTranscribing(true);
+    try {
+      const audioToUpload = voiceFile || voiceBlob;
+      if (audioToUpload) {
+        const res = await api.uploadVoiceNote(caseId, audioToUpload, voicePinnedRule || undefined, userName || 'Workshop Technician');
+        if (res?.case) {
+          setCaseData(res.case);
+        } else {
+          await loadCase();
+        }
+        showToast('Voice note transcribed & attached to case successfully!', 'success');
+      } else if (voiceTranscriptInput.trim()) {
+        const updated = await api.addVoiceNote(caseId, {
+          transcript: voiceTranscriptInput.trim(),
+          durationSeconds: 10,
+          recordedBy: userName || 'Workshop Technician',
+          pinnedToEvidenceKey: voicePinnedRule || undefined,
+        });
+        setCaseData(updated);
+        showToast('Technician note attached successfully!', 'success');
+      }
+      setVoiceModalOpen(false);
+      setVoiceBlob(null);
+      setVoiceAudioUrl(null);
+      setVoiceFile(null);
+      setVoiceTranscriptInput('');
+      setVoicePinnedRule('');
+    } catch (err: any) {
+      showToast('Failed to save voice note: ' + err.message, 'error');
+    } finally {
+      setVoiceTranscribing(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1072,7 +1162,7 @@ export default function CaseDetailPage() {
 
         {/* Voice to Tech Dictation Section */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26]">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1081,29 +1171,196 @@ export default function CaseDetailPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 tracking-tight">Voice to Tech Workshop Transcripts</h3>
-                <p className="text-xs text-slate-500">OmniSuiteAI Australian Automotive Speech-to-Text Model</p>
+                <p className="text-xs text-slate-500">Deepgram Nova-2 Australian Automotive Speech-to-Text Model</p>
               </div>
             </div>
-            <span className="text-xs text-emerald-600 font-bold">Live Dictation Verified</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-emerald-600 font-bold px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Deepgram Nova-2 Active
+              </span>
+              <button
+                type="button"
+                onClick={() => setVoiceModalOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                <span>+ Dictate Voice Note</span>
+              </button>
+            </div>
           </div>
 
           {caseData.voiceNotes && caseData.voiceNotes.length > 0 ? (
             <div className="space-y-3">
-              {caseData.voiceNotes.map((vn) => (
-                <div key={vn.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="font-semibold text-slate-900">Recorded by {vn.recordedBy}</span>
-                    <span className="font-mono">{vn.durationSeconds}s duration · {new Date(vn.recordedAt).toLocaleString()}</span>
+              {caseData.voiceNotes.map((vn) => {
+                const pinnedName = vn.pinnedToEvidenceKey ? (RULE_NAMES[vn.pinnedToEvidenceKey] || vn.pinnedToEvidenceKey) : null;
+                return (
+                  <div key={vn.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900">Recorded by {vn.recordedBy}</span>
+                        {pinnedName && (
+                          <span className="px-2 py-0.5 rounded bg-red-50 text-[#E11F26] font-semibold text-[11px] border border-red-200">
+                            📌 Pinned: {pinnedName}
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-mono">{vn.durationSeconds}s duration • {new Date(vn.recordedAt).toLocaleString()}</span>
+                    </div>
+                    <p className="text-sm text-slate-800 font-medium italic">"{vn.transcript}"</p>
+                    {vn.originalAudioUrl && (
+                      <div className="pt-2">
+                        <audio controls src={vn.originalAudioUrl} className="w-full h-8" />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-slate-800 font-medium italic">"{vn.transcript}"</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <p className="text-xs text-slate-500 italic">No audio dictation notes recorded for this ticket.</p>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
+              <p className="text-xs text-slate-500 italic">No audio dictation notes recorded for this ticket.</p>
+              <button
+                type="button"
+                onClick={() => setVoiceModalOpen(true)}
+                className="mt-2 text-xs text-[#E11F26] font-bold hover:underline"
+              >
+                Click here to dictate or upload a workshop voice note
+              </button>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Voice Note Dictation Modal */}
+      <Modal
+        isOpen={voiceModalOpen}
+        onClose={() => {
+          if (!voiceTranscribing) {
+            setVoiceModalOpen(false);
+            if (isRecordingVoice) stopVoiceRecording();
+          }
+        }}
+        title="Voice to Tech — Record & Transcribe Workshop Note"
+        maxWidth="md"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setVoiceModalOpen(false);
+                if (isRecordingVoice) stopVoiceRecording();
+              }}
+              className="btn-ghost text-xs"
+              disabled={voiceTranscribing}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleVoiceSubmit}
+              disabled={voiceTranscribing || isRecordingVoice || (!voiceBlob && !voiceFile && !voiceTranscriptInput.trim())}
+              className={`text-xs py-2.5 px-5 flex items-center gap-1.5 font-bold transition-all rounded-xl cursor-pointer ${
+                voiceTranscribing || isRecordingVoice || (!voiceBlob && !voiceFile && !voiceTranscriptInput.trim())
+                  ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200'
+                  : 'btn-primary'
+              }`}
+            >
+              {voiceTranscribing ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Transcribing with Deepgram Nova-2...</span>
+                </>
+              ) : (
+                <span>Attach Note to Ticket</span>
+              )}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4 text-xs">
+          {/* Pinned Evidence Rule */}
+          <div>
+            <label className="block font-bold text-slate-800 mb-1">Pin Note to Evidence Rule (Optional)</label>
+            <select
+              value={voicePinnedRule}
+              onChange={(e) => setVoicePinnedRule(e.target.value)}
+              className="input-field text-xs w-full"
+            >
+              <option value="">General Workshop Note (No specific rule)</option>
+              {Object.entries(RULE_NAMES).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label} ({k})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Microphone Live Dictation Box */}
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-3">
+            <p className="font-bold text-slate-800">Option A: Live Microphone Dictation</p>
+            <div className="flex items-center justify-center gap-3">
+              {!isRecordingVoice ? (
+                <button
+                  type="button"
+                  onClick={startVoiceRecording}
+                  className="px-4 py-2.5 rounded-full bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs flex items-center gap-2 shadow-md cursor-pointer transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                  <span>Start Microphone Recording</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopVoiceRecording}
+                  className="px-4 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center gap-2 shadow-md cursor-pointer animate-pulse transition-all"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                  <span>Recording ({voiceSecs}s) — Click to Stop</span>
+                </button>
+              )}
+            </div>
+
+            {voiceAudioUrl && (
+              <div className="p-2 bg-white rounded-lg border border-slate-200 mt-2">
+                <p className="text-[11px] font-semibold text-slate-700 mb-1">Preview Recording:</p>
+                <audio controls src={voiceAudioUrl} className="w-full h-8" />
+              </div>
+            )}
+          </div>
+
+          {/* Option B: Audio File Upload */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <p className="font-bold text-slate-800">Option B: Upload Audio File (.wav, .mp3, .m4a, .webm)</p>
+            <input
+              type="file"
+              accept="audio/*,.wav,.mp3,.m4a,.webm,.ogg"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setVoiceFile(file);
+                  setVoiceAudioUrl(URL.createObjectURL(file));
+                }
+              }}
+              className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#E11F26] file:text-white hover:file:bg-[#c81a20] cursor-pointer"
+            />
+          </div>
+
+          {/* Option C: Manual Note Entry */}
+          <div className="space-y-1">
+            <label className="block font-bold text-slate-800">Or Type / Edit Transcript Manually</label>
+            <textarea
+              rows={3}
+              value={voiceTranscriptInput}
+              onChange={(e) => setVoiceTranscriptInput(e.target.value)}
+              placeholder="E.g. Checked high-voltage battery connector and confirmed 0.0V isolation threshold across all phases..."
+              className="input-field text-xs w-full"
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Media Lightbox Modal */}
       {selectedMedia && (

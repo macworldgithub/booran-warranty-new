@@ -555,10 +555,11 @@ export const api = {
   async addVoiceNote(
     caseId: string,
     data: {
-      transcript: string;
-      durationSeconds: number;
-      recordedBy: string;
+      transcript?: string;
+      durationSeconds?: number;
+      recordedBy?: string;
       originalAudioUrl?: string;
+      audioBase64?: string;
       pinnedToEvidenceKey?: string;
     },
   ): Promise<WarrantyCase> {
@@ -570,6 +571,40 @@ export const api = {
         body: JSON.stringify(data),
       },
     );
+    return handleResponse(res);
+  },
+
+  async uploadVoiceNote(
+    caseId: string,
+    file: Blob | File,
+    pinnedToEvidenceKey?: string,
+    recordedBy?: string,
+  ): Promise<{ case: WarrantyCase; voiceNote: any; transcription: any }> {
+    const formData = new FormData();
+    formData.append("file", file, file instanceof File ? file.name : "voice_note.webm");
+    if (pinnedToEvidenceKey) formData.append("pinnedToEvidenceKey", pinnedToEvidenceKey);
+    if (recordedBy) formData.append("recordedBy", recordedBy);
+
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("booran_auth_token") || localStorage.getItem("booran_jwt");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const userStr = localStorage.getItem("booran_user") || localStorage.getItem("booran_user_profile");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user.role) headers["X-User-Role"] = user.role;
+          if (user.id) headers["X-User-Id"] = user.id;
+          if (user.name) headers["X-User-Name"] = user.name;
+        } catch { /* ignore */ }
+      }
+    }
+
+    const res = await fetch(`${BASE_URL}/warranty-cases/${caseId}/voice-notes/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
     return handleResponse(res);
   },
 
