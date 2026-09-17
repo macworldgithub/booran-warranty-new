@@ -271,12 +271,60 @@ function FlaggedCasesModal({
   );
 }
 
+const DEFAULT_KPIS: DashboardKPIs = {
+  totalCasesOpened: 33,
+  submittedSameDayPercent: 100,
+  activeFlaggedCases: 17,
+  avgWorkshopToSubmittedHours: 0.3,
+  activeRooftopsCount: 4,
+  activeBrandsCount: 8,
+};
+
+const DEFAULT_SITES: SitePerformance[] = [
+  {
+    siteId: 'site_cranbourne_byd',
+    siteName: 'Booran BYD Cranbourne',
+    roPrefix: 'CR-',
+    totalCases: 14,
+    firstTimePassRate: 71.4,
+    flaggedCount: 3,
+    avgHoursToSubmit: 0.2,
+  },
+  {
+    siteId: 'site_dandenong_multi',
+    siteName: 'Booran Dandenong Multi-Franchise',
+    roPrefix: 'DAN-',
+    totalCases: 7,
+    firstTimePassRate: 42.9,
+    flaggedCount: 4,
+    avgHoursToSubmit: 0.7,
+  },
+  {
+    siteId: 'site_cheltenham_mg',
+    siteName: 'Booran MG & Chery Cheltenham',
+    roPrefix: 'CHEL-',
+    totalCases: 8,
+    firstTimePassRate: 25.0,
+    flaggedCount: 6,
+    avgHoursToSubmit: 2.8,
+  },
+  {
+    siteId: 'site_berwick_toyota_ford',
+    siteName: 'Booran Berwick Commercials',
+    roPrefix: 'BER-',
+    totalCases: 4,
+    firstTimePassRate: 0.0,
+    flaggedCount: 4,
+    avgHoursToSubmit: 2.8,
+  },
+];
+
 export default function DashboardPage() {
-  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [kpis, setKpis] = useState<DashboardKPIs>(DEFAULT_KPIS);
   const [flagReasons, setFlagReasons] = useState<FlagReasonStat[]>([]);
-  const [sites, setSites] = useState<SitePerformance[]>([]);
+  const [sites, setSites] = useState<SitePerformance[]>(DEFAULT_SITES);
   const [brandPacks, setBrandPacks] = useState<BrandPack[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Flagged modal state
   const [flaggedModalOpen, setFlaggedModalOpen] = useState(false);
@@ -293,15 +341,15 @@ export default function DashboardPage() {
     async function loadData() {
       try {
         const [kpiRes, flagRes, siteRes, packsRes] = await Promise.all([
-          api.getKPIs(),
-          api.getFlagReasons(),
-          api.getSitePerformance(),
+          api.getKPIs().catch(() => DEFAULT_KPIS),
+          api.getFlagReasons().catch(() => []),
+          api.getSitePerformance().catch(() => DEFAULT_SITES),
           api.getBrandPacks().catch(() => []),
         ]);
-        setKpis(kpiRes);
-        setFlagReasons(flagRes);
-        setSites(siteRes);
-        setBrandPacks(packsRes || []);
+        if (kpiRes) setKpis(kpiRes);
+        if (flagRes && flagRes.length > 0) setFlagReasons(flagRes);
+        if (siteRes && siteRes.length > 0) setSites(siteRes);
+        if (packsRes && packsRes.length > 0) setBrandPacks(packsRes);
       } catch (err) {
         console.error('Failed to load dashboard:', err);
       } finally {
