@@ -172,6 +172,11 @@ export default function BrandPacksPage() {
   const [simWizardStep, setSimWizardStep] = useState(0);
   const [simSubmitted, setSimSubmitted] = useState(false);
   const [simFlashEffect, setSimFlashEffect] = useState(false);
+  const [simFlaggedAlert, setSimFlaggedAlert] = useState<{
+    ruleKey: string;
+    reasonCode: string;
+    instruction: string;
+  } | null>(null);
 
   const loadData = async () => {
     try {
@@ -1871,6 +1876,47 @@ export default function BrandPacksPage() {
                 </p>
               )}
             </div>
+
+            {/* Interactive Quality Gate & Push Notification Simulator */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  📲 Simulate Clerk Flag Push Notification
+                </span>
+                <span className="text-[10px] text-[#E11F26] font-mono font-bold">Scope Sec. 6 & 8.3</span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-tight">
+                Simulate a Warranty Clerk rejecting an evidence item. An animated mobile push notification banner will appear on the technician phone. Tapping it drops the technician directly onto that gate.
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSimFlaggedAlert({
+                      ruleKey: 'fault_location',
+                      reasonCode: 'WRONG_ANGLE',
+                      instruction: 'Photo framed too tight. Step back 1 meter to show surrounding subframe and mounting bracket.',
+                    });
+                  }}
+                  className="px-2.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold text-[10px] cursor-pointer text-left transition-colors shadow-2xs"
+                >
+                  ⚠️ Reject Location (WRONG_ANGLE)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSimFlaggedAlert({
+                      ruleKey: 'vin_photo',
+                      reasonCode: 'UNREADABLE_VIN',
+                      instruction: 'Windscreen glare obscuring VIN characters 4 through 7. Recapture without torch reflection.',
+                    });
+                  }}
+                  className="px-2.5 py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-300 text-red-900 font-bold text-[10px] cursor-pointer text-left transition-colors shadow-2xs"
+                >
+                  ⚠️ Reject VIN (UNREADABLE_VIN)
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Right Preview: Interactive Simulated Mobile Phone Viewport */}
@@ -1961,6 +2007,48 @@ export default function BrandPacksPage() {
 
                 {/* Active View Container */}
                 <div className="flex-1 overflow-hidden flex flex-col pt-1">
+                  {/* Simulated In-App Push Notification Banner (Scope Section 6 & 8.3) */}
+                  {simFlaggedAlert && (
+                    <div
+                      onClick={() => {
+                        const targetGate = simulatedGates.find((g) => g.ruleKey === simFlaggedAlert.ruleKey) || simulatedGates[0];
+                        setSimPhoneTab('CHECKLIST');
+                        setSimCapturedGates((prev) => {
+                          const next = { ...prev };
+                          delete next[simFlaggedAlert.ruleKey];
+                          return next;
+                        });
+                        setSimActiveCameraGate(targetGate);
+                        setSimFlaggedAlert(null);
+                      }}
+                      className="mb-2 p-2.5 rounded-xl bg-slate-900 text-white border-2 border-[#E11F26] shadow-xl cursor-pointer animate-bounce group transition-all shrink-0"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="flex items-center gap-1.5 text-[9px] font-mono font-bold text-red-400 uppercase tracking-wider">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                          Push Alert · Clerk Flag
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSimFlaggedAlert(null);
+                          }}
+                          className="text-slate-400 hover:text-white text-xs px-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="text-[11px] font-bold text-white flex items-center justify-between">
+                        <span>Rejected: {simFlaggedAlert.reasonCode}</span>
+                        <span className="text-[10px] text-red-400 font-bold group-hover:underline">Tap to Fix 📸</span>
+                      </div>
+                      <p className="text-[10px] text-slate-300 italic mt-0.5 line-clamp-2 leading-tight">
+                        "{simFlaggedAlert.instruction}"
+                      </p>
+                    </div>
+                  )}
+
                   {/* 1. Camera Viewfinder Simulator Mode */}
                   {simActiveCameraGate ? (
                     <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col justify-between p-3 relative overflow-hidden animate-fadeIn text-white">
