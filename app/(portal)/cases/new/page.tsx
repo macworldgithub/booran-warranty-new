@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '../../../../components/header';
 import { useToast } from '../../../../components/toast';
@@ -58,14 +58,65 @@ export default function NewCaseWizard() {
         const [sitesRes, brandsRes] = await Promise.all([api.getSites(), api.getBrands()]);
         setSites(sitesRes);
         setBrands(brandsRes);
-        if (sitesRes.length > 0 && !siteId) setSiteId(sitesRes[0].id);
-        if (brandsRes.length > 0) setBrandId(brandsRes[0].id);
+        
+        let initialSiteId = siteId;
+        if (!initialSiteId && sitesRes.length > 0) {
+          initialSiteId = sitesRes[0].id;
+          setSiteId(initialSiteId);
+        }
+
+        const activeSite = sitesRes.find((s) => s.id === initialSiteId) || sitesRes[0];
+        if (activeSite) {
+          const authIds = activeSite.authorizedBrandIds || [];
+          const matchedBrands = brandsRes.filter((b) => authIds.includes(b.id));
+          if (matchedBrands.length > 0) {
+            setBrandId(matchedBrands[0].id);
+          } else if (brandsRes.length > 0) {
+            setBrandId(brandsRes[0].id);
+          }
+        }
       } catch (err) {
         console.error('Failed to load sites/brands:', err);
       }
     }
     init();
   }, []);
+
+  // Currently selected site
+  const selectedSite = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
+
+  // Derived: only brands authorized for the selected dealership site
+  const availableBrands = useMemo(() => {
+    if (!selectedSite) return brands;
+    const authIds = selectedSite.authorizedBrandIds || [];
+    if (authIds.length > 0) {
+      const filtered = brands.filter((b) => authIds.includes(b.id));
+      if (filtered.length > 0) return filtered;
+    }
+
+    // Fallback: match by brand name in site name
+    const siteNameLower = (selectedSite.name || '').toLowerCase();
+    const matchedByName = brands.filter((b) => {
+      const bName = (b.name || '').toLowerCase();
+      const bCode = (b.code || '').toLowerCase();
+      return (bName && siteNameLower.includes(bName)) || (bCode && siteNameLower.includes(bCode));
+    });
+    if (matchedByName.length > 0) return matchedByName;
+
+    return brands;
+  }, [selectedSite, brands]);
+
+  // Ensure selected brandId is always an authorized brand for the chosen site
+  useEffect(() => {
+    if (availableBrands.length > 0) {
+      const isCurrentBrandValid = availableBrands.some((b) => b.id === brandId);
+      if (!isCurrentBrandValid) {
+        setBrandId(availableBrands[0].id);
+      }
+    } else {
+      setBrandId('');
+    }
+  }, [availableBrands, brandId]);
 
   useEffect(() => {
     if (brandId && faultCategory) {
@@ -76,7 +127,7 @@ export default function NewCaseWizard() {
   async function evaluateDynamicRules() {
     try {
       const res = await api.evaluateRules({
-        brandId: brandId || 'brand_byd',
+        brandId: brandId || (availableBrands[0]?.id || 'brand_byd'),
         faultCategory,
         partReplaced,
         noiseFault,
@@ -208,13 +259,29 @@ export default function NewCaseWizard() {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Dealership Site</label>
                 <select
                   value={siteId}
-                  onChange={(e) => setSiteId(e.target.value)}
+                  onChange={(e) => {
+                    const newSiteId = e.target.value;
+                    setSiteId(newSiteId);
+                    const newSite = sites.find((s) => s.id === newSiteId);
+                    if (newSite) {
+                      const authIds = newSite.authorizedBrandIds || [];
+                      const siteBrands = brands.filter((b) => authIds.includes(b.id));
+                      if (siteBrands.length > 0) {
+                        setBrandId(siteBrands[0].id);
+                      }
+                    }
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-[#E11F26] focus:outline-none transition-all"
                 >
                   {sites.map((s) => (
                     <option key={s.id} value={s.id}>{s.name} ({s.roPrefix})</option>
                   ))}
                 </select>
+                {selectedSite && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Prefix: <span className="font-mono font-bold text-slate-700">{selectedSite.roPrefix}</span> · {selectedSite.location}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -224,10 +291,15 @@ export default function NewCaseWizard() {
                   onChange={(e) => setBrandId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-[#E11F26] focus:outline-none transition-all"
                 >
-                  {brands.map((b) => (
+                  {availableBrands.map((b) => (
                     <option key={b.id} value={b.id}>{b.name} — {b.seedChecklistReference}</option>
                   ))}
                 </select>
+                {selectedSite && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Showing only <span className="font-semibold text-slate-700">{availableBrands.length} OEM brand{availableBrands.length !== 1 ? 's' : ''}</span> authorized for {selectedSite.name}
+                  </p>
+                )}
               </div>
             </div>
           </div>
