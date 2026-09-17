@@ -95,6 +95,62 @@ export const api = {
       }
       return res.json();
     },
+        async sendRegistrationOtp(payload: {
+      email: string;
+      name?: string;
+    }): Promise<{ success: boolean; message: string; devOtp?: string }> {
+      const res = await fetch(`${BASE_URL}/auth/register/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let errorMsg = "Unable to send verification code.";
+        try {
+          const errJson = await res.json();
+          if (errJson.message) {
+            errorMsg = Array.isArray(errJson.message)
+              ? errJson.message.join(", ")
+              : errJson.message;
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(errorMsg);
+      }
+      return res.json();
+    },
+
+    async verifyRegistrationOtp(payload: {
+      email: string;
+      otp: string;
+      name: string;
+      password: string;
+      role: string;
+      siteId?: string;
+    }): Promise<{ accessToken: string; user: UserProfile }> {
+      const res = await fetch(`${BASE_URL}/auth/register/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let errorMsg = "Verification failed. Please check your code.";
+        try {
+          const errJson = await res.json();
+          if (errJson.message) {
+            errorMsg = Array.isArray(errJson.message)
+              ? errJson.message.join(", ")
+              : errJson.message;
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(errorMsg);
+      }
+      return res.json();
+    },
+
     async signup(payload: {
       name: string;
       email: string;

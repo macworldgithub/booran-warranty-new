@@ -97,11 +97,9 @@ export default function CasesPage() {
         if (userName) params.technicianName = userName;
       }
 
-      const res = await api.getWarrantyCases(params);
-      setCases(res.data || (res as any));
-      if (res.meta) {
-        setMeta(res.meta);
-      }
+      params.limit = 100; // fetch up to 100 cases per load
+      const result = await api.getWarrantyCases(params);
+      setCases(Array.isArray(result) ? result : (result?.data ?? []));
     } catch (err) {
       console.error('Failed to load cases:', err);
     } finally {
@@ -236,11 +234,10 @@ export default function CasesPage() {
                     if (tab.key === 'Flagged') setFlaggedOnly(true);
                     else setFlaggedOnly(false);
                   }}
-                  className={`px-5 py-3 text-xs uppercase tracking-wider font-bold transition-all relative whitespace-nowrap cursor-pointer ${
-                    isActive
+                  className={`px-5 py-3 text-xs uppercase tracking-wider font-bold transition-all relative whitespace-nowrap cursor-pointer ${isActive
                       ? 'text-[#E11F26] border-b-2 border-[#E11F26] -mb-[1px]'
                       : 'text-slate-600 hover:text-slate-900 border-b-2 border-transparent'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -302,11 +299,10 @@ export default function CasesPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setFlaggedOnly(!flaggedOnly)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${
-                  flaggedOnly
+                className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all flex items-center gap-2 cursor-pointer ${flaggedOnly
                     ? 'bg-red-50 border-[#E11F26] text-[#E11F26] font-bold shadow-xs'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 <span className="w-2 h-2 rounded-full bg-[#E11F26]" />
                 <span>Flagged Only</span>
@@ -486,13 +482,12 @@ export default function CasesPage() {
                           </div>
                           <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                             <div
-                              className={`h-full rounded-full transition-all duration-300 ${
-                                gatePercent === 100
+                              className={`h-full rounded-full transition-all duration-300 ${gatePercent === 100
                                   ? 'bg-emerald-500'
                                   : gatePercent > 50
-                                  ? 'bg-[#E11F26]'
-                                  : 'bg-amber-500'
-                              }`}
+                                    ? 'bg-[#E11F26]'
+                                    : 'bg-amber-500'
+                                }`}
                               style={{ width: `${gatePercent}%` }}
                             />
                           </div>
@@ -513,11 +508,10 @@ export default function CasesPage() {
                           ) : (
                             <Link
                               href={`/cases/${c.id}`}
-                              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all border shadow-xs shrink-0 ${
-                                c.status === 'Flagged'
+                              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs whitespace-nowrap transition-all border shadow-xs shrink-0 ${c.status === 'Flagged'
                                   ? 'bg-red-50 hover:bg-[#E11F26] text-[#E11F26] hover:text-white border-red-200 hover:border-[#E11F26]'
                                   : 'bg-white hover:bg-[#E11F26] text-slate-700 hover:text-white border-slate-300 hover:border-[#E11F26]'
-                              }`}
+                                }`}
                             >
                               <span className="whitespace-nowrap">{c.status === 'Flagged' ? 'View Flags' : 'Review'}</span>
                               <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -532,28 +526,29 @@ export default function CasesPage() {
                 })}
               </div>
 
-            {!loading && meta && meta.total > 0 && (
-              <Pagination
-                currentPage={meta.page}
-                totalPages={meta.totalPages}
-                totalItems={meta.total}
-                itemsPerPage={limit}
-                isLoading={loading}
-                onPageChange={(newPage) => {
-                  setPage(newPage);
-                  loadCases(newPage, limit);
-                }}
-                onItemsPerPageChange={(newLimit) => {
-                  setLimit(newLimit);
-                  setPage(1);
-                  loadCases(1, newLimit);
-                }}
-              />
-            )}
-          </>
-        )}
-      </div>
+              {!loading && meta && meta.total > 0 && (
+                <Pagination
+                  currentPage={meta.page}
+                  totalPages={meta.totalPages}
+                  totalItems={meta.total}
+                  itemsPerPage={limit}
+                  isLoading={loading}
+                  onPageChange={(newPage) => {
+                    setPage(newPage);
+                    loadCases(newPage, limit);
+                  }}
+                  onItemsPerPageChange={(newLimit) => {
+                    setLimit(newLimit);
+                    setPage(1);
+                    loadCases(1, newLimit);
+                  }}
+                />
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
