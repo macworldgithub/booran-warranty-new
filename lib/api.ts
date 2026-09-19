@@ -16,7 +16,8 @@ import {
   PaginatedResult,
 } from "./types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
 
 function getAuthHeader(): HeadersInit {
   const headers: Record<string, string> = {
