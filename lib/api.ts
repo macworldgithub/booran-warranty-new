@@ -665,13 +665,19 @@ export const api = {
     return handleResponse(res);
   },
 
-  // Voice to Tech
   getLiveVoiceWebSocketUrl(): string {
     if (typeof window === "undefined") return "";
     const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = process.env.NEXT_PUBLIC_API_URL
-      ? new URL(process.env.NEXT_PUBLIC_API_URL).host
-      : "localhost:4000";
+    let host = "warranty-evidence.omnisuiteai.com";
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      try {
+        host = new URL(process.env.NEXT_PUBLIC_API_URL).host;
+      } catch {
+        host = process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, "").split("/")[0];
+      }
+    } else if (typeof window !== "undefined" && window.location.host.includes("localhost")) {
+      host = "localhost:4000";
+    }
     return `${wsProto}//${host}/api/v1/voice-to-tech/live`;
   },
 
