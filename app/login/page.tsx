@@ -42,6 +42,9 @@ export default function LoginPage() {
 
   const handleModeSwitch = (mode: 'signin' | 'signup') => {
     setAuthMode(mode);
+    if (mode === 'signup') {
+      setSelectedRole('TECHNICIAN');
+    }
     setIsOtpStep(false);
     setOtpCode('');
     setDevOtpBadge(null);
@@ -218,8 +221,8 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Role Selector Tabs */}
-          {!isOtpStep && (
+          {/* Role Selector Tabs (Only for Sign In; Register Account is restricted to Technicians) */}
+          {!isOtpStep && authMode === 'signin' && (
             <div className="mb-6">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
                 Select Workspace Role
@@ -264,6 +267,26 @@ export default function LoginPage() {
                   </div>
                   <p className="text-[11px] text-slate-700">Mobile camera & quick evidence capture</p>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Registration Notice for Techs */}
+          {!isOtpStep && authMode === 'signup' && (
+            <div className="mb-6 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900">Workshop Technician Registration</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-100 text-[#E11F26]">Tech Only</span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                  Self-registration is available for Workshop Technicians. Warranty Admin accounts are provisioned internally by dealership management.
+                </p>
               </div>
             </div>
           )}

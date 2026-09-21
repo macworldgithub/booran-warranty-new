@@ -1,5 +1,6 @@
 import {
   UserProfile,
+  UserRole,
   Site,
   Brand,
   BrandPack,
@@ -193,6 +194,30 @@ export const api = {
       });
       return handleResponse(res);
     },
+    createUser: async (data: {
+      name: string;
+      email: string;
+      password?: string;
+      role: UserRole;
+      siteId?: string;
+    }): Promise<UserProfile> => {
+      const res = await fetch(`${BASE_URL}/auth/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
+    deleteUser: async (id: string): Promise<{ success: boolean; message: string }> => {
+      const res = await fetch(`${BASE_URL}/auth/users/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeader(),
+      });
+      return handleResponse(res);
+    },
   },
 
   async getMe(): Promise<UserProfile> {
@@ -207,6 +232,20 @@ export const api = {
       headers: getAuthHeader(),
     });
     return handleResponse(res);
+  },
+
+  async createUser(data: {
+    name: string;
+    email: string;
+    password?: string;
+    role: UserRole;
+    siteId?: string;
+  }): Promise<UserProfile> {
+    return this.auth.createUser(data);
+  },
+
+  async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
+    return this.auth.deleteUser(id);
   },
 
   // Sites
