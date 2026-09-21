@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserRole } from '@/lib/types';
 import { api } from '@/lib/api';
+import { OtpInput } from '@/components/auth/otp-input';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedSite, setSelectedSite] = useState('site_cranbourne_byd');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,6 +26,7 @@ export default function LoginPage() {
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [devOtpBadge, setDevOtpBadge] = useState<string | null>(null);
+  const [regCountdown, setRegCountdown] = useState(60);
 
   // Forgot Password Modal State
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -32,10 +35,12 @@ export default function LoginPage() {
   const [forgotOtp, setForgotOtp] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
-  const [forgotDevOtp, setForgotDevOtp] = useState<string | null>(null);
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotSuccess, setForgotSuccess] = useState<string | null>(null);
+  const [forgotCountdown, setForgotCountdown] = useState(60);
 
   // Clear any stale tokens when landing on login page
   useEffect(() => {
@@ -46,6 +51,24 @@ export default function LoginPage() {
       localStorage.removeItem('booran_user_profile');
     }
   }, []);
+
+  // Registration OTP 60s Countdown Timer
+  useEffect(() => {
+    if (!isOtpStep || regCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setRegCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isOtpStep, regCountdown]);
+
+  // Forgot Password OTP 60s Countdown Timer
+  useEffect(() => {
+    if (!showForgotModal || forgotStep !== 'OTP_RESET' || forgotCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setForgotCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [showForgotModal, forgotStep, forgotCountdown]);
 
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
@@ -82,6 +105,7 @@ export default function LoginPage() {
     if (!name.trim()) throw new Error('Please enter your full name');
     if (!email.trim() || !email.includes('@')) throw new Error('Please enter a valid work email address');
     if (!password.trim() || password.length < 6) throw new Error('Password must be at least 6 characters');
+    if (confirmPassword && password !== confirmPassword) throw new Error('Passwords do not match');
 
     setLoading(true);
     setErrorMsg(null);
@@ -94,11 +118,10 @@ export default function LoginPage() {
       });
 
       setIsOtpStep(true);
-      if (res.devOtp) {
-        setDevOtpBadge(res.devOtp);
-        setOtpCode(res.devOtp);
-      }
-      setSuccessMsg(`Verification code sent to ${email.trim().toLowerCase()}`);
+      setRegCountdown(60);
+      setOtpCode('');
+      setDevOtpBadge(null);
+      setSuccessMsg(`Verification code dispatched to ${email.trim().toLowerCase()}`);
     } catch (err: any) {
       setErrorMsg(err.message || 'Unable to send verification code. Please check your email.');
     } finally {
@@ -106,9 +129,29 @@ export default function LoginPage() {
     }
   };
 
+  const handleResendRegistrationOtp = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await api.auth.sendRegistrationOtp({
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+      });
+      setRegCountdown(60);
+      setOtpCode('');
+      setDevOtpBadge(null);
+      setSuccessMsg(`A new verification code was sent to ${email.trim().toLowerCase()}`);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Unable to resend code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyOtpAndCreate = async () => {
-    if (!otpCode.trim() || otpCode.trim().length < 4) {
-      throw new Error('Please enter the 6-digit verification code.');
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      throw new Error('Please enter the full 6-digit verification code.');
     }
 
     setLoading(true);
@@ -126,12 +169,12 @@ export default function LoginPage() {
       });
 
       saveAuthSession(response.user, response.accessToken);
-      setSuccessMsg('Account verified and created successfully! Redirecting...');
+      setSuccessMsg('Account verified and created successfully! Redirecting to workspace...');
       setTimeout(() => {
         router.replace(selectedRole === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
       }, 800);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Verification failed. Please check the code.');
+      setErrorMsg(err.message || 'Verification failed. Please check the 6-digit code.');
     } finally {
       setLoading(false);
     }
@@ -191,11 +234,9 @@ export default function LoginPage() {
     try {
       const res = await api.sendForgotPasswordOtp(forgotEmail.trim().toLowerCase());
       setForgotStep('OTP_RESET');
-      if (res.devOtp) {
-        setForgotDevOtp(res.devOtp);
-        setForgotOtp(res.devOtp);
-      }
-      setForgotSuccess(`Verification code sent to ${forgotEmail.trim().toLowerCase()}`);
+      setForgotCountdown(60);
+      setForgotOtp('');
+      setForgotSuccess(`Verification code dispatched to ${forgotEmail.trim().toLowerCase()}`);
     } catch (err: any) {
       setForgotError(err.message || 'Unable to send password reset code. Please check your email.');
     } finally {
@@ -203,10 +244,26 @@ export default function LoginPage() {
     }
   };
 
+  const handleResendForgotOtp = async () => {
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotSuccess(null);
+    try {
+      const res = await api.sendForgotPasswordOtp(forgotEmail.trim().toLowerCase());
+      setForgotCountdown(60);
+      setForgotOtp('');
+      setForgotSuccess(`A new reset code was dispatched to ${forgotEmail.trim().toLowerCase()}`);
+    } catch (err: any) {
+      setForgotError(err.message || 'Failed to resend code. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotOtp.trim() || forgotOtp.trim().length < 4) {
-      setForgotError('Please enter the 6-digit verification code.');
+    if (!forgotOtp.trim() || forgotOtp.trim().length !== 6) {
+      setForgotError('Please enter the full 6-digit verification code.');
       return;
     }
     if (!forgotNewPassword || forgotNewPassword.length < 6) {
@@ -375,50 +432,59 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* OTP Verification Step for Sign Up */}
             {authMode === 'signup' && isOtpStep ? (
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-slate-900">Email Verification Code</span>
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-base font-black text-slate-900">Verify Your Work Email</h3>
+                  <p className="text-xs text-slate-600 mt-1">
+                    We dispatched a 6-digit verification code to:
+                  </p>
+                  <p className="text-xs font-mono font-bold text-slate-900 bg-white border border-slate-200 px-3 py-1 rounded-lg inline-block my-2">
+                    {email}
+                  </p>
+
+                  {/* 6 Individual Digit Boxes */}
+                  <div className="py-2">
+                    <OtpInput
+                      value={otpCode}
+                      onChange={setOtpCode}
+                      disabled={loading}
+                      autoFocus={true}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Check your email inbox or spam folder for your 6-digit code.
+                  </p>
+
+                  <div className="mt-4 pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs">
                     <button
                       type="button"
                       onClick={() => setIsOtpStep(false)}
-                      className="text-xs text-[#E11F26] font-semibold hover:underline"
+                      className="text-slate-500 hover:text-slate-700 font-semibold cursor-pointer"
                     >
-                      Change Details
+                      ← Edit Details
                     </button>
+
+                    {regCountdown > 0 ? (
+                      <span className="text-slate-400 font-medium">
+                        Resend code in <strong className="font-mono text-slate-700">{regCountdown}s</strong>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={handleResendRegistrationOtp}
+                        className="text-[#E11F26] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Resend verification code
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-600 mb-3">
-                    We sent a 6-digit verification code to <span className="font-semibold text-slate-900">{email}</span>
-                  </p>
-
-                  {devOtpBadge && (
-                    <div className="mb-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900">
-                      <span>Development Code:</span>
-                      <span className="font-mono font-bold text-sm text-[#E11F26]">{devOtpBadge}</span>
-                    </div>
-                  )}
-
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    placeholder="Enter 6-digit code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="w-full text-center tracking-[0.3em] font-mono text-xl font-bold bg-white border border-slate-300 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Didn't receive code?</span>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={handleSendOtp}
-                    className="text-[#E11F26] font-semibold hover:underline cursor-pointer disabled:opacity-50"
-                  >
-                    Resend Code
-                  </button>
                 </div>
               </div>
             ) : (
@@ -507,14 +573,14 @@ export default function LoginPage() {
                             setForgotOtp('');
                             setForgotNewPassword('');
                             setForgotConfirmPassword('');
-                            setForgotDevOtp(null);
                             setForgotError(null);
                             setForgotSuccess(null);
+                            setForgotCountdown(60);
                             setShowForgotModal(true);
                           }}
                           className="text-[11px] text-[#E11F26] hover:underline cursor-pointer font-semibold"
                         >
-                          Forgot Password?
+                          Forgot password?
                         </button>
                       </div>
                     )}
@@ -546,6 +612,23 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Confirm Password on Signup */}
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                      Confirm Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -568,7 +651,7 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (authMode === 'signup' && isOtpStep && otpCode.length !== 6)}
               className="w-full bg-[#E11F26] hover:bg-[#c9181e] disabled:opacity-50 text-white font-bold text-sm py-3 rounded-2xl transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               {loading ? (
@@ -622,7 +705,7 @@ export default function LoginPage() {
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Reset Password</h3>
                   <p className="text-xs text-slate-500">
-                    {forgotStep === 'EMAIL' ? 'Request email verification code' : 'Verify code & set new password'}
+                    {forgotStep === 'EMAIL' ? 'Request email verification code' : 'Verify 6-digit code & reset password'}
                   </p>
                 </div>
               </div>
@@ -654,7 +737,7 @@ export default function LoginPage() {
             {forgotStep === 'EMAIL' ? (
               <form onSubmit={handleSendForgotOtp} className="space-y-4">
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Enter your registered work email address. We'll send a 6-digit verification code to reset your account password.
+                  Enter your registered work email address. We will dispatch a 6-digit verification code to reset your account password.
                 </p>
 
                 <div>
@@ -688,7 +771,7 @@ export default function LoginPage() {
                       <>
                         <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
                         <span>Sending Code...</span>
                       </>
@@ -701,9 +784,9 @@ export default function LoginPage() {
             ) : (
               /* Step 2: Enter OTP & New Password */
               <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900">Email Verification Code</span>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-900">Email Verification Code</span>
                     <button
                       type="button"
                       onClick={() => setForgotStep('EMAIL')}
@@ -716,88 +799,123 @@ export default function LoginPage() {
                     Enter the 6-digit code sent to <strong className="text-slate-900">{forgotEmail}</strong>
                   </p>
 
-                  {forgotDevOtp && (
-                    <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-between text-xs text-amber-900">
-                      <span>Dev Code:</span>
-                      <span className="font-mono font-bold text-sm text-[#E11F26]">{forgotDevOtp}</span>
-                    </div>
-                  )}
+                  {/* 6 Individual Digit Boxes */}
+                  <div className="py-1">
+                    <OtpInput
+                      value={forgotOtp}
+                      onChange={setForgotOtp}
+                      disabled={forgotLoading}
+                      autoFocus={true}
+                    />
+                  </div>
 
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    placeholder="Enter 6-digit OTP"
-                    value={forgotOtp}
-                    onChange={(e) => setForgotOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="w-full text-center tracking-[0.25em] font-mono text-lg font-bold bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                  />
+                  <div className="pt-1 flex items-center justify-between text-xs">
+                    {forgotCountdown > 0 ? (
+                      <span className="text-slate-400 font-medium">
+                        Resend code in <strong className="font-mono text-slate-700">{forgotCountdown}s</strong>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={forgotLoading}
+                        onClick={handleResendForgotOtp}
+                        className="text-[#E11F26] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Resend verification code
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                     New Password
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="At least 6 characters"
-                    value={forgotNewPassword}
-                    onChange={(e) => setForgotNewPassword(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="At least 6 characters"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showForgotNewPassword ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
                     Confirm New Password
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Re-type new password"
-                    value={forgotConfirmPassword}
-                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
-                  <button
-                    type="button"
-                    disabled={forgotLoading}
-                    onClick={handleSendForgotOtp}
-                    className="text-xs text-[#E11F26] hover:underline font-semibold cursor-pointer disabled:opacity-50"
-                  >
-                    Resend Code
-                  </button>
-
-                  <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <input
+                      type={showForgotConfirmPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Re-type new password"
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                    />
                     <button
                       type="button"
-                      onClick={() => setShowForgotModal(false)}
-                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
+                      onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={forgotLoading}
-                      className="px-5 py-2.5 bg-[#E11F26] hover:bg-[#c9181e] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer"
-                    >
-                      {forgotLoading ? (
-                        <>
-                          <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                          </svg>
-                          <span>Resetting...</span>
-                        </>
+                      {showForgotConfirmPassword ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
                       ) : (
-                        <span>Save New Password</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
                       )}
                     </button>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading || forgotOtp.length !== 6}
+                    className="px-5 py-2.5 bg-[#E11F26] hover:bg-[#c9181e] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span>Resetting...</span>
+                      </>
+                    ) : (
+                      <span>Save New Password</span>
+                    )}
+                  </button>
                 </div>
               </form>
             )}
