@@ -218,6 +218,28 @@ export const api = {
       });
       return handleResponse(res);
     },
+    sendForgotPasswordOtp: async (
+      email: string,
+    ): Promise<{ success: boolean; message: string; devOtp?: string }> => {
+      const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      return handleResponse(res);
+    },
+    resetPassword: async (data: {
+      email: string;
+      otp: string;
+      newPassword: string;
+    }): Promise<{ success: boolean; message: string }> => {
+      const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return handleResponse(res);
+    },
   },
 
   async getMe(): Promise<UserProfile> {
@@ -246,6 +268,20 @@ export const api = {
 
   async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
     return this.auth.deleteUser(id);
+  },
+
+  async sendForgotPasswordOtp(
+    email: string,
+  ): Promise<{ success: boolean; message: string; devOtp?: string }> {
+    return this.auth.sendForgotPasswordOtp(email);
+  },
+
+  async resetPassword(data: {
+    email: string;
+    otp: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; message: string }> {
+    return this.auth.resetPassword(data);
   },
 
   // Sites
