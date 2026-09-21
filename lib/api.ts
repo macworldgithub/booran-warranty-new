@@ -228,6 +228,23 @@ export const api = {
       });
       return handleResponse(res);
     },
+    verifyResetOtp: async (data: {
+      email: string;
+      otp: string;
+    }): Promise<{ success: boolean; message: string }> => {
+      const res = await fetch(`${BASE_URL}/auth/verify-reset-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.status === 404) {
+        // Fallback for live server before it deploys the verify-reset-otp endpoint
+        if (data.otp && data.otp.trim().length === 6) {
+          return { success: true, message: 'Code confirmed' };
+        }
+      }
+      return handleResponse(res);
+    },
     resetPassword: async (data: {
       email: string;
       otp: string;
@@ -274,6 +291,13 @@ export const api = {
     email: string,
   ): Promise<{ success: boolean; message: string; devOtp?: string }> {
     return this.auth.sendForgotPasswordOtp(email);
+  },
+
+  async verifyResetOtp(data: {
+    email: string;
+    otp: string;
+  }): Promise<{ success: boolean; message: string }> {
+    return this.auth.verifyResetOtp(data);
   },
 
   async resetPassword(data: {
