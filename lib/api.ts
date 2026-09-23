@@ -15,6 +15,8 @@ import {
   FlagReasonCode,
   MediaType,
   PaginatedResult,
+  LoanAgreement,
+  LoanAgreementKpis,
 } from "./types";
 
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -827,5 +829,45 @@ export const api = {
       headers: getAuthHeader(),
     });
     return handleResponse(res);
+  },
+
+  // Loan Vehicle Operations
+  async getLoanAgreementKpis(siteId?: string): Promise<LoanAgreementKpis> {
+    const query = siteId && siteId !== "all" ? `?siteId=${encodeURIComponent(siteId)}` : "";
+    const res = await fetch(`${BASE_URL}/loan-agreements/kpis${query}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getLoanAgreements(siteId?: string, status?: string): Promise<LoanAgreement[]> {
+    const params: string[] = [];
+    if (siteId && siteId !== "all") params.push(`siteId=${encodeURIComponent(siteId)}`);
+    if (status && status !== "all") params.push(`status=${encodeURIComponent(status)}`);
+    const query = params.length > 0 ? `?${params.join("&")}` : "";
+    const res = await fetch(`${BASE_URL}/loan-agreements${query}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getLoanAgreementById(id: string): Promise<LoanAgreement> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/${id}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async returnLoanAgreement(id: string, data: any): Promise<LoanAgreement> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/${id}/return`, {
+      method: "POST",
+      headers: getAuthHeader(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  getLoanAgreementPdfUrl(id: string): string {
+    return `${BASE_URL}/loan-agreements/${id}/pdf`;
   },
 };
