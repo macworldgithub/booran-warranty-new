@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '../../../components/header';
 import { Pagination } from '../../../components/pagination';
 import { api } from '../../../lib/api';
 import { Site, UserProfile, UserRole } from '../../../lib/types';
 
 export default function UsersPage() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +17,23 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+
+  // Guard against Technician accessing users page
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+      if (userStr) {
+        try {
+          const parsed = JSON.parse(userStr);
+          if (parsed.role === 'TECHNICIAN') {
+            router.replace('/cases');
+            return;
+          }
+        } catch {}
+      }
+      setAuthorized(true);
+    }
+  }, [router]);
 
   // Add User Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -56,8 +76,10 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (authorized) {
+      loadData();
+    }
+  }, [authorized]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {

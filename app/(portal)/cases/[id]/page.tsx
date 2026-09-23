@@ -601,7 +601,7 @@ export default function CaseDetailPage() {
                   </svg>
                   <span>Export OEM ZIP Pack</span>
                 </button>
-                {caseData.status !== 'Submitted' && (
+                {caseData.status !== 'Submitted' && caseData.status !== 'Flagged' && (
                   <>
                     <button
                       onClick={() => setFlagModalOpen(true)}

@@ -16,6 +16,7 @@ export default function NewCaseWizard() {
   const [loading, setLoading] = useState(false);
   const [vinDecoding, setVinDecoding] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [roleChecked, setRoleChecked] = useState(false);
 
   // Form State
   const [siteId, setSiteId] = useState('');
@@ -27,7 +28,7 @@ export default function NewCaseWizard() {
   const [model, setModel] = useState('');
   const [year, setYear] = useState<number | ''>('');
   const [powertrain, setPowertrain] = useState<'EV' | 'Hybrid' | 'PHEV' | 'ICE'>('EV');
-  const [technicianName, setTechnicianName] = useState('Jake Smith');
+  const [technicianName, setTechnicianName] = useState('');
   const [concernTitle, setConcernTitle] = useState('');
   const [faultCategory, setFaultCategory] = useState<FaultCategory>('Battery and high-voltage (HV) components');
   const [partReplaced, setPartReplaced] = useState(false);
@@ -51,6 +52,7 @@ export default function NewCaseWizard() {
           // ignore
         }
       }
+      setRoleChecked(true);
     }
 
     async function init() {
@@ -201,7 +203,22 @@ export default function NewCaseWizard() {
     }
   }
 
-  if (currentUserRole && currentUserRole !== 'TECHNICIAN') {
+  if (!roleChecked) {
+    return (
+      <div className="flex-1 flex flex-col pb-12 bg-[#F8FAFC]">
+        <Header
+          title="New Warranty RO Evidence Capture"
+          subtitle="Verifying authorization..."
+        />
+        <div className="min-h-[400px] flex flex-col items-center justify-center gap-3">
+          <div className="w-10 h-10 border-2 border-[#E11F26]/20 border-t-[#E11F26] rounded-full animate-spin" />
+          <span className="text-xs text-slate-500 font-medium">Verifying technician permissions...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentUserRole !== 'TECHNICIAN') {
     return (
       <div className="flex-1 flex flex-col pb-12 bg-[#F8FAFC]">
         <Header
@@ -218,7 +235,7 @@ export default function NewCaseWizard() {
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 tracking-wide">Technician Role Required</h3>
               <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                Warranty tickets can only be raised and captured by workshop technicians. As an Administrator, your account has review, audit, flagging, and submission permissions in the Warranty Review Queue.
+                Warranty evidence capture is performed on the workshop floor by <strong>Technicians</strong>. As an <strong>Administrator</strong>, your responsibilities are in the <strong>Admin Portal</strong> to review, audit evidence gates, flag defects, and submit completed claims to OEM portals.
               </p>
             </div>
             <div className="pt-2 flex justify-center gap-4">
@@ -230,7 +247,7 @@ export default function NewCaseWizard() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Go to Warranty Cases Queue</span>
+                <span>Return to Warranty Review Queue</span>
               </button>
             </div>
           </div>
