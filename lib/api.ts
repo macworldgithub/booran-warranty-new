@@ -38,8 +38,8 @@ export function resolveMediaUrl(url?: string | null): string {
   const backendBase =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     (typeof window !== 'undefined'
-      ? process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:4000'
-      : 'http://localhost:4000');
+      ? process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'https://warranty-evidence.omnisuiteai.com'
+      : 'https://warranty-evidence.omnisuiteai.com');
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
   return `${backendBase.replace(/\/+$/, '')}${cleanPath}`;
 }
@@ -798,8 +798,6 @@ export const api = {
       } catch {
         host = process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, "").split("/")[0];
       }
-    } else if (typeof window !== "undefined" && window.location.host.includes("localhost")) {
-      host = "localhost:4000";
     }
     return `${wsProto}//${host}/api/v1/voice-to-tech/live`;
   },
