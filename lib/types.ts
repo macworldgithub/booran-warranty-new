@@ -407,6 +407,7 @@ export interface LoanAgreement {
 }
 
 export interface LoanAgreementKpis {
+  totalCars?: number;
   available: number;
   outNow: number;
   dueSoon: number;

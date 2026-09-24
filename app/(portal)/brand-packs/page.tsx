@@ -7,7 +7,7 @@ import { Modal } from '../../../components/modal';
 import { StatusBadge } from '../../../components/status-badge';
 import { AddBrandRuleModal } from '../../../components/add-brand-rule-modal';
 import { useToast } from '../../../components/toast';
-import { api } from '../../../lib/api';
+import { api, resolveMediaUrl } from '../../../lib/api';
 import { BrandPack, BrandPackRule, FaultCategory, WarrantyCase } from '../../../lib/types';
 
 const FAULT_CATEGORIES: FaultCategory[] = [
@@ -1306,11 +1306,16 @@ export default function BrandPacksPage() {
                       {/* Video Player without obstructing overlays */}
                       <div className="w-full h-[360px] bg-black rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md flex items-center justify-center relative">
                         <video
-                          src={benchmark.sampleImage}
+                          key={benchmark.sampleImage}
                           controls
                           playsInline
+                          preload="auto"
                           className="w-full h-full object-contain"
-                        />
+                        >
+                          <source src={resolveMediaUrl(benchmark.sampleImage)} type="video/mp4" />
+                          <source src={benchmark.sampleImage} />
+                          Your browser does not support HTML5 video playback.
+                        </video>
                       </div>
                     </div>
                   );

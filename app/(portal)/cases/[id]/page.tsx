@@ -7,7 +7,7 @@ import { Header } from '../../../../components/header';
 import { StatusBadge } from '../../../../components/status-badge';
 import { Modal } from '../../../../components/modal';
 import { useToast } from '../../../../components/toast';
-import { api } from '../../../../lib/api';
+import { api, resolveMediaUrl } from '../../../../lib/api';
 import { WarrantyCase, FlagReasonCode, SubmissionPackResponse } from '../../../../lib/types';
 
 const RULE_NAMES: Record<string, string> = {
@@ -55,10 +55,18 @@ function EvidenceThumbnail({
 }: {
   item: any;
   caseVin?: string;
-  onExpand: (url: string) => void;
+  onExpand: (url: string, itemObj?: any) => void;
 }) {
   const [hasError, setHasError] = useState(false);
-  const isVideo = item.mediaType === 'video' || (item.storageUrl && item.storageUrl.toLowerCase().endsWith('.mp4'));
+  const resolvedUrl = resolveMediaUrl(item.storageUrl);
+  const isVideo =
+    item.mediaType === 'video' ||
+    (item.mimeType && item.mimeType.startsWith('video/')) ||
+    (item.storageUrl && (
+      item.storageUrl.toLowerCase().includes('.mp4') ||
+      item.storageUrl.toLowerCase().includes('.webm') ||
+      item.storageUrl.toLowerCase().includes('.mov')
+    ));
   const isLocalFileUri = Boolean(item.storageUrl && (item.storageUrl.startsWith('file://') || item.storageUrl.startsWith('content://')));
   const isVinRule = item.ruleKey === 'vin_photo' || (item.name && item.name.toLowerCase().includes('vin'));
   const vinText = item.ocrExtractedText || caseVin || '';
@@ -67,7 +75,7 @@ function EvidenceThumbnail({
   if (isVinRule && (isLocalFileUri || hasError || !item.storageUrl)) {
     return (
       <div
-        onClick={() => onExpand(item.storageUrl || 'vin_digital')}
+        onClick={() => onExpand(resolvedUrl || item.storageUrl || 'vin_digital', item)}
         className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-4 flex flex-col justify-between select-none relative overflow-hidden group/thumb cursor-pointer"
       >
         <div className="flex items-center justify-between">
@@ -106,11 +114,52 @@ function EvidenceThumbnail({
     );
   }
 
+  // Video preview
+  if (isVideo) {
+    return (
+      <div
+        onClick={() => onExpand(resolvedUrl || item.storageUrl, item)}
+        className="w-full h-full relative group/video cursor-pointer bg-slate-950 flex items-center justify-center overflow-hidden"
+      >
+        {resolvedUrl && !isLocalFileUri && !hasError ? (
+          <video
+            src={resolvedUrl}
+            preload="metadata"
+            muted
+            playsInline
+            onError={() => setHasError(true)}
+            className="w-full h-full object-cover opacity-80 group-hover/video:opacity-100 transition-opacity"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center p-3 text-center text-slate-300 space-y-1">
+            <svg className="w-10 h-10 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span className="text-[11px] font-bold text-slate-200">Video Evidence</span>
+            <span className="text-[9px] text-amber-300 font-mono">Click to Play (.mp4)</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/video:bg-black/35 transition-colors">
+          <div className="w-11 h-11 rounded-full bg-white/95 text-slate-900 flex items-center justify-center shadow-xl group-hover/video:scale-110 transition-transform">
+            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
+        {item.durationSeconds ? (
+          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 text-white text-[10px] font-mono font-bold tracking-wider">
+            {item.durationSeconds}s
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   // If broken generic image or file URI
   if (hasError || isLocalFileUri || !item.storageUrl) {
     return (
       <div
-        onClick={() => onExpand(item.storageUrl || '')}
+        onClick={() => onExpand(resolvedUrl || item.storageUrl || '', item)}
         className="w-full h-full bg-slate-100 flex flex-col items-center justify-center p-3 text-center text-slate-400 space-y-1 cursor-pointer"
       >
         <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,30 +173,10 @@ function EvidenceThumbnail({
     );
   }
 
-  // Video preview
-  if (isVideo) {
-    return (
-      <div onClick={() => onExpand(item.storageUrl)} className="w-full h-full relative group/video cursor-pointer">
-        <video
-          src={item.storageUrl}
-          preload="metadata"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover/video:bg-black/40 transition-colors">
-          <div className="w-10 h-10 rounded-full bg-white/90 text-slate-900 flex items-center justify-center shadow-lg group-hover/video:scale-110 transition-transform">
-            <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Normal image preview with error fallback
   return (
     <img
-      src={item.storageUrl}
+      src={resolvedUrl || item.storageUrl}
       alt={item.name}
       onError={() => setHasError(true)}
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -164,6 +193,7 @@ export default function CaseDetailPage() {
   const [caseData, setCaseData] = useState<WarrantyCase | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const [selectedMediaItem, setSelectedMediaItem] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
 
@@ -1090,7 +1120,10 @@ export default function CaseDetailPage() {
                     <EvidenceThumbnail
                       item={item}
                       caseVin={caseData?.vin}
-                      onExpand={(url) => setSelectedMedia(url || item.storageUrl)}
+                      onExpand={(url, itemObj) => {
+                        setSelectedMedia(url || item.storageUrl);
+                        setSelectedMediaItem(itemObj || item);
+                      }}
                     />
                     <div
                       onClick={() => setSelectedMedia(item.storageUrl)}
@@ -1365,51 +1398,130 @@ export default function CaseDetailPage() {
       {/* Media Lightbox Modal */}
       {selectedMedia && (
         <div
-          onClick={() => setSelectedMedia(null)}
+          onClick={() => {
+            setSelectedMedia(null);
+            setSelectedMediaItem(null);
+          }}
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-md cursor-pointer animate-fadeIn"
         >
           <div
-            className="max-w-4xl max-h-[85vh] overflow-hidden rounded-2xl border border-white/20 shadow-2xl relative"
+            className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/20 shadow-2xl relative bg-slate-950 flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {selectedMedia.toLowerCase().includes('.mp4') ? (
-              <video
-                src={selectedMedia}
-                controls
-                autoPlay
-                className="w-full h-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : selectedMedia === 'vin_digital' || selectedMedia.startsWith('file://') ? (
-              <div className="bg-slate-900 text-white p-8 rounded-2xl max-w-lg text-center space-y-4">
-                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
-                  ✓
-                </div>
-                <h4 className="text-lg font-bold">Digital Barcode Scan Verified</h4>
-                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
-                  <p className="font-mono text-2xl tracking-widest text-emerald-400 font-black">
-                    {caseData?.vin || '2C4RDGCG0FR805928'}
-                  </p>
-                  <p className="text-xs text-slate-400">OCR Confidence: 99% Verified</p>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Decoded live from vehicle windscreen barcode via technician mobile scanner.
-                </p>
-                <button
-                  onClick={() => setSelectedMedia(null)}
-                  className="py-2.5 px-6 rounded-xl bg-[#E11F26] text-white font-bold text-xs hover:bg-[#c81a20] transition-colors cursor-pointer"
+            {/* Header bar */}
+            <div className="px-5 py-3 bg-slate-900/90 border-b border-white/10 flex items-center justify-between text-white shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                <span className="text-xs font-bold text-slate-200 truncate">
+                  {selectedMediaItem?.name || (selectedMedia.toLowerCase().includes('.mp4') ? 'Video Evidence Recording' : 'Captured Evidence Photo')}
+                </span>
+                {selectedMediaItem?.ruleKey && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-slate-300">
+                    {selectedMediaItem.ruleKey}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Download / Open direct button */}
+                <a
+                  href={resolveMediaUrl(selectedMedia)}
+                  download={selectedMediaItem?.oemFileName || 'evidence_video.mp4'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  title="Download / Open direct stream in new tab"
                 >
-                  Close Preview
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download / Open Tab</span>
+                </a>
+                <button
+                  onClick={() => {
+                    setSelectedMedia(null);
+                    setSelectedMediaItem(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+                >
+                  ✕
                 </button>
               </div>
-            ) : (
-              <img src={selectedMedia} alt="Evidence" className="w-full h-full object-contain" />
-            )}
-            <button
-              onClick={() => setSelectedMedia(null)}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center text-xs cursor-pointer"
-            >
-              ✕
-            </button>
+            </div>
+
+            {/* Media Body */}
+            <div className="flex-1 overflow-auto flex items-center justify-center p-3 relative min-h-[300px]">
+              {Boolean(
+                selectedMediaItem?.mediaType === 'video' ||
+                (selectedMediaItem?.mimeType && selectedMediaItem.mimeType.startsWith('video/')) ||
+                selectedMedia.toLowerCase().includes('.mp4') ||
+                selectedMedia.toLowerCase().includes('.webm') ||
+                selectedMedia.toLowerCase().includes('.mov')
+              ) ? (
+                <div className="w-full flex flex-col items-center justify-center gap-3">
+                  <video
+                    key={selectedMedia}
+                    controls
+                    playsInline
+                    preload="auto"
+                    controlsList="nodownload"
+                    className="w-full max-h-[72vh] object-contain rounded-xl shadow-2xl bg-black"
+                  >
+                    <source src={resolveMediaUrl(selectedMedia)} type="video/mp4" />
+                    <source src={resolveMediaUrl(selectedMedia)} type="video/webm" />
+                    <source src={selectedMedia} />
+                    Your browser does not support HTML5 video playback.
+                  </video>
+                  <div className="flex flex-wrap items-center justify-between w-full px-2 text-xs text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Direct H.264/AAC MP4 Stream
+                    </span>
+                    <a
+                      href={resolveMediaUrl(selectedMedia)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      If video won&apos;t play, click here to stream in new window ↗
+                    </a>
+                  </div>
+                </div>
+              ) : selectedMedia === 'vin_digital' || (selectedMedia.startsWith('file://') && selectedMediaItem?.ruleKey === 'vin_photo') ? (
+                <div className="bg-slate-900 text-white p-8 rounded-2xl max-w-lg text-center space-y-4">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl font-bold">
+                    ✓
+                  </div>
+                  <h4 className="text-lg font-bold">Digital Barcode Scan Verified</h4>
+                  <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
+                    <p className="font-mono text-2xl tracking-widest text-emerald-400 font-black">
+                      {caseData?.vin || '2C4RDGCG0FR805928'}
+                    </p>
+                    <p className="text-xs text-slate-400">OCR Confidence: 99% Verified</p>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Decoded live from vehicle windscreen barcode via technician mobile scanner.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedMedia(null);
+                      setSelectedMediaItem(null);
+                    }}
+                    className="py-2.5 px-6 rounded-xl bg-[#E11F26] text-white font-bold text-xs hover:bg-[#c81a20] transition-colors cursor-pointer"
+                  >
+                    Close Preview
+                  </button>
+                </div>
+              ) : (
+                <img
+                  src={resolveMediaUrl(selectedMedia)}
+                  alt="Evidence"
+                  className="w-full h-full max-h-[80vh] object-contain rounded-xl"
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

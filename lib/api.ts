@@ -22,6 +22,28 @@ import {
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
 
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url) return '';
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('blob:') ||
+    url.startsWith('data:')
+  ) {
+    return url;
+  }
+  if (url.startsWith('file://')) {
+    return url;
+  }
+  const backendBase =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    (typeof window !== 'undefined'
+      ? process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:4000'
+      : 'http://localhost:4000');
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  return `${backendBase.replace(/\/+$/, '')}${cleanPath}`;
+}
+
 function getAuthHeader(): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -858,11 +880,37 @@ export const api = {
     return handleResponse(res);
   },
 
+  async issueLoanAgreement(data: any): Promise<LoanAgreement> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/issue`, {
+      method: "POST",
+      headers: getAuthHeader(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   async returnLoanAgreement(id: string, data: any): Promise<LoanAgreement> {
     const res = await fetch(`${BASE_URL}/loan-agreements/${id}/return`, {
       method: "POST",
       headers: getAuthHeader(),
       body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updateLoanAgreement(id: string, data: any): Promise<LoanAgreement> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/${id}`, {
+      method: "PATCH",
+      headers: getAuthHeader(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async deleteLoanAgreement(id: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeader(),
     });
     return handleResponse(res);
   },
