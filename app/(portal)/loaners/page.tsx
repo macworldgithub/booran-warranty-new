@@ -45,6 +45,8 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
   const totalCars = filtered.length;
   let available = 0;
   let outNow = 0;
+  let activeLoans = 0;
+  let activeTestDrives = 0;
   let dueSoon = 0;
   let overdue = 0;
 
@@ -55,6 +57,12 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
     }
 
     outNow++;
+    if (a.purpose === 'TEST_DRIVE') {
+      activeTestDrives++;
+    } else {
+      activeLoans++;
+    }
+
     const category = getDynamicLoanCategory(a.status, a.dueBackDateTime);
     if (category === 'OVERDUE') {
       overdue++;
@@ -67,6 +75,8 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
     totalCars,
     available,
     outNow,
+    activeLoans,
+    activeTestDrives,
     dueSoon,
     overdue,
   };
@@ -74,7 +84,11 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
 
 export default function LoanersPage() {
   const [selectedSiteId, setSelectedSiteId] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'ACTIVE' | 'DUE_SOON' | 'OVERDUE'>('ALL');
+  const [userRole, setUserRole] = useState<string>('ADMIN');
+  const [technicianSiteId, setTechnicianSiteId] = useState<string>('');
+  const [technicianSiteName, setTechnicianSiteName] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'ACTIVE' | 'ACTIVE_LOAN' | 'ACTIVE_TEST_DRIVE' | 'DUE_SOON' | 'OVERDUE'>('ALL');
+  const [purposeFilter, setPurposeFilter] = useState<'ALL' | 'SERVICE_LOANER' | 'TEST_DRIVE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [agreements, setAgreements] = useState<LoanAgreement[]>([]);
@@ -82,15 +96,53 @@ export default function LoanersPage() {
     totalCars: 0,
     available: 0,
     outNow: 0,
+    activeLoans: 0,
+    activeTestDrives: 0,
     dueSoon: 0,
     overdue: 0,
   });
+
+  const isTechnician = userRole?.toUpperCase() === 'TECHNICIAN';
+
+  // Load user session to restrict technician to assigned rooftop
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          if (u.role) setUserRole(u.role);
+          const sId = u.defaultSiteId || u.siteId;
+          if (sId) {
+            setTechnicianSiteId(sId);
+            const found = ROOFTOPS.find((r) => r.siteId === sId);
+            setTechnicianSiteName(found?.label || sId);
+            if (u.role?.toUpperCase() === 'TECHNICIAN') {
+              setSelectedSiteId(sId);
+              setIssueSiteId(sId);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }, []);
 
   // Modals & CRUD State
   const [previewAgreement, setPreviewAgreement] = useState<LoanAgreement | null>(null);
   const [returnAgreement, setReturnAgreement] = useState<LoanAgreement | null>(null);
   const [returnOdo, setReturnOdo] = useState('');
   const [returnFuel, setReturnFuel] = useState('75');
+  const [returnFuelChargeOverride, setReturnFuelChargeOverride] = useState('');
+  const [returnHasDamage, setReturnHasDamage] = useState(false);
+  const [returnDamageCharge, setReturnDamageCharge] = useState('150.00');
+  const [returnHasIncident, setReturnHasIncident] = useState(false);
+  const [returnExcessBand, setReturnExcessBand] = useState('Basic Excess ($2,500)');
+  const [returnExcessAmount, setReturnExcessAmount] = useState('2500');
+  const [returnHasCleaning, setReturnHasCleaning] = useState(false);
+  const [returnCleaningFee, setReturnCleaningFee] = useState('120.00');
+  const [returnDepositHeld, setReturnDepositHeld] = useState('500');
   const [returnNotes, setReturnNotes] = useState('');
   const [submittingReturn, setSubmittingReturn] = useState(false);
 
@@ -113,6 +165,7 @@ export default function LoanersPage() {
 
   // Create: Issue Modal
   const [isIssueOpen, setIsIssueOpen] = useState(false);
+  const [issuePurpose, setIssuePurpose] = useState<'SERVICE_LOANER' | 'TEST_DRIVE'>('SERVICE_LOANER');
   const [issueSiteId, setIssueSiteId] = useState('site_cranbourne_byd');
   const [issueCustomerName, setIssueCustomerName] = useState('');
   const [issueMobile, setIssueMobile] = useState('');
@@ -123,12 +176,15 @@ export default function LoanersPage() {
   const [issueModel, setIssueModel] = useState('');
   const [issueOdo, setIssueOdo] = useState('');
   const [issueDueHours, setIssueDueHours] = useState('24');
+  const [issueDeposit, setIssueDeposit] = useState('500');
+  const [issueDepositMethod, setIssueDepositMethod] = useState('CARD_PREAUTH');
   const [submittingIssue, setSubmittingIssue] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const siteParam = selectedSiteId === 'all' ? undefined : selectedSiteId;
+      const effectiveSite = isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId;
+      const siteParam = effectiveSite === 'all' ? undefined : effectiveSite;
       const [agList, kpiData] = await Promise.all([
         api.getLoanAgreements(siteParam),
         api.getLoanAgreementKpis(siteParam).catch(() => null),
@@ -138,14 +194,14 @@ export default function LoanersPage() {
       if (kpiData && typeof kpiData.totalCars === 'number') {
         setKpis(kpiData);
       } else {
-        setKpis(computeKpis(list, selectedSiteId));
+        setKpis(computeKpis(list, effectiveSite));
       }
     } catch (err: any) {
       console.error('Failed to load loan operations data:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedSiteId]);
+  }, [selectedSiteId, isTechnician, technicianSiteId]);
 
   useEffect(() => {
     fetchData();
@@ -154,18 +210,31 @@ export default function LoanersPage() {
   // Keep KPI boxes synced when site filter changes
   useEffect(() => {
     if (agreements.length > 0) {
-      setKpis(computeKpis(agreements, selectedSiteId));
+      const effectiveSite = isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId;
+      setKpis(computeKpis(agreements, effectiveSite));
     }
-  }, [selectedSiteId, agreements]);
+  }, [selectedSiteId, agreements, isTechnician, technicianSiteId]);
 
   // Filtered agreements
   const filteredAgreements = agreements.filter((ag) => {
-    if (selectedSiteId !== 'all' && ag.siteId !== selectedSiteId) {
+    const effectiveSite = isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId;
+    if (effectiveSite !== 'all' && ag.siteId !== effectiveSite) {
+      return false;
+    }
+    if (purposeFilter !== 'ALL' && ag.purpose !== purposeFilter) {
       return false;
     }
     const category = getDynamicLoanCategory(ag.status, ag.dueBackDateTime);
     if (statusFilter === 'AVAILABLE' && category !== 'RETURNED') {
       return false;
+    }
+    if (statusFilter === 'ACTIVE_LOAN') {
+      if (category !== 'ACTIVE' && category !== 'DUE_SOON') return false;
+      if (ag.purpose === 'TEST_DRIVE') return false;
+    }
+    if (statusFilter === 'ACTIVE_TEST_DRIVE') {
+      if (category !== 'ACTIVE' && category !== 'DUE_SOON') return false;
+      if (ag.purpose !== 'TEST_DRIVE') return false;
     }
     if (statusFilter === 'ACTIVE' && category !== 'ACTIVE' && category !== 'DUE_SOON') {
       return false;
@@ -265,14 +334,51 @@ export default function LoanersPage() {
       return;
     }
 
+    const kmTravelled = Math.max(0, numOdoIn - odoOut);
+    const startMs = new Date(returnAgreement.loanStartDateTime).getTime();
+    const endMs = Date.now();
+    const days = Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)));
+    const allowableKm = days * (returnAgreement.dailyKmCap || 50);
+    const excessKm = Math.max(0, kmTravelled - allowableKm);
+    const excessRate = returnAgreement.excessKmRate || 0.50;
+    const excessKmCharge = Number((excessKm * excessRate).toFixed(2));
+
+    const fuelOut = returnAgreement.outbound?.fuelLevelOutPercent ?? 100;
+    const numFuelIn = Math.min(100, Math.max(0, parseInt(returnFuel, 10) || 0));
+    const fuelShortage = Math.max(0, fuelOut - numFuelIn);
+    const autoFuelCharge = Number((fuelShortage * 1.50).toFixed(2));
+    const finalFuelCharge = returnFuelChargeOverride !== ''
+      ? Math.max(0, parseFloat(returnFuelChargeOverride) || 0)
+      : autoFuelCharge;
+
+    const finalDamageCharge = returnHasDamage ? Math.max(0, parseFloat(returnDamageCharge) || 0) : 0;
+    const finalExcessCharge = returnHasIncident ? Math.max(0, parseFloat(returnExcessAmount) || 0) : 0;
+    const finalCleaningCharge = returnHasCleaning ? Math.max(0, parseFloat(returnCleaningFee) || 0) : 0;
+    const totalChargesDue = Number(
+      (excessKmCharge + finalFuelCharge + finalDamageCharge + finalExcessCharge + finalCleaningCharge).toFixed(2)
+    );
+
+    const depositHeld = Math.max(0, parseFloat(returnDepositHeld) || 0);
+    const netAmountDue = Math.max(0, Number((totalChargesDue - depositHeld).toFixed(2)));
+    const depositRefundAmount = Math.max(0, Number((depositHeld - totalChargesDue).toFixed(2)));
+
     try {
       setSubmittingReturn(true);
       await api.returnLoanAgreement(returnAgreement.id, {
         odometerIn: numOdoIn,
-        fuelLevelInPercent: parseInt(returnFuel, 10) || 75,
-        returnDamageNotes: returnNotes.trim() || 'Returned and checked by dealership staff.',
-        hasDamageIncident: false,
-        applicableExcessAmount: 0,
+        fuelLevelInPercent: numFuelIn,
+        fuelShortagePercent: fuelShortage,
+        fuelChargeAmount: finalFuelCharge,
+        damageChargeAmount: finalDamageCharge,
+        cleaningFeeAmount: finalCleaningCharge,
+        totalChargesDue,
+        securityDepositHeld: depositHeld,
+        depositRefundAmount,
+        netAmountDue,
+        returnDamageNotes: returnNotes.trim() || (returnHasDamage ? 'Damage recorded on return.' : 'Returned and checked by dealership staff.'),
+        hasDamageIncident: returnHasDamage || returnHasIncident,
+        applicableExcessBand: returnHasIncident ? returnExcessBand : undefined,
+        applicableExcessAmount: finalExcessCharge,
       });
       setReturnAgreement(null);
       fetchData();
@@ -382,14 +488,15 @@ export default function LoanersPage() {
       return;
     }
 
-    const siteObj = ROOFTOPS.find((r) => r.siteId === issueSiteId) || ROOFTOPS[1];
+    const effectiveIssueSite = isTechnician && technicianSiteId ? technicianSiteId : issueSiteId;
+    const siteObj = ROOFTOPS.find((r) => r.siteId === effectiveIssueSite) || ROOFTOPS[1];
     const hours = parseInt(issueDueHours, 10) || 24;
     const dueTime = new Date(Date.now() + hours * 3600000).toISOString();
 
     const payload = {
       siteId: siteObj.siteId,
       siteName: siteObj.fullName || `Booran ${siteObj.label}`,
-      purpose: 'SERVICE_LOANER',
+      purpose: issuePurpose,
       customer: {
         name: issueCustomerName.trim(),
         dob: '1990-01-01',
@@ -405,7 +512,7 @@ export default function LoanersPage() {
         vin: 'LGX' + Math.random().toString(36).substring(2, 10).toUpperCase(),
         rego: issueRego.trim().toUpperCase(),
         make: issueMake.trim() || 'Booran Fleet',
-        model: issueModel.trim() || 'Service Loaner',
+        model: issueModel.trim() || (issuePurpose === 'TEST_DRIVE' ? 'Demo Vehicle' : 'Service Loaner'),
         year: 2024,
         colour: 'White',
       },
@@ -413,6 +520,8 @@ export default function LoanersPage() {
       dailyKmCap: 50,
       excessKmRate: 0.5,
       basicInsuranceExcess: 2500,
+      securityDepositHeld: parseFloat(issueDeposit) || 500,
+      depositPaymentMethod: issueDepositMethod,
       outbound: {
         odometerOut: parseInt(issueOdo, 10) || 0,
         fuelLevelOutPercent: 100,
@@ -454,56 +563,87 @@ export default function LoanersPage() {
     }
   };
 
+  const openIssueModal = (purpose: 'SERVICE_LOANER' | 'TEST_DRIVE') => {
+    setIssuePurpose(purpose);
+    setIssueDueHours(purpose === 'TEST_DRIVE' ? '1' : '24');
+    if (isTechnician && technicianSiteId) {
+      setIssueSiteId(technicianSiteId);
+    }
+    setIsIssueOpen(true);
+  };
+
+  const activeRooftopLabel = ROOFTOPS.find(
+    (r) => r.siteId === (isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId)
+  )?.label || technicianSiteName || 'Cranbourne';
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <Header
         title="Loan Vehicle Operations"
-        subtitle="Booran Motor Group • Digital Customer Agreements & Electronic SOW Compliance"
+        subtitle={
+          isTechnician
+            ? `Booran Motor Group • Workshop Fleet (${activeRooftopLabel} Rooftop - Technician Scoped)`
+            : "Booran Motor Group • Digital Customer Agreements & Electronic SOW Compliance"
+        }
         action={
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsIssueOpen(true)}
+              onClick={() => openIssueModal('SERVICE_LOANER')}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+              </svg>
+              Issue Loaner
+            </button>
+            <button
+              onClick={() => openIssueModal('TEST_DRIVE')}
               className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B91218] text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
               </svg>
-              Issue Loan Vehicle
+              Start Test Drive
             </button>
-            <div className="relative group inline-flex items-center">
-              <select
-                value={selectedSiteId}
-                onChange={(e) => setSelectedSiteId(e.target.value)}
-                className="bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-xs focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden cursor-pointer"
-              >
-                {ROOFTOPS.map((rt) => (
-                  <option key={rt.siteId} value={rt.siteId}>
-                    {rt.label}
-                  </option>
-                ))}
-              </select>
-              {/* Tooltip for selected rooftop */}
-              <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 hidden group-hover:flex flex-col items-center z-50">
-                <div className="w-2 h-2 bg-slate-900 rotate-45 -mb-1 border-l border-t border-slate-700/80" />
-                <div className="bg-slate-900 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap border border-slate-700/80 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D71920]" />
-                  <span>
-                    {selectedSiteId === 'site_dandenong_multi'
-                      ? 'Booran Dandenong Multi-Franchise Dealership'
-                      : ROOFTOPS.find((r) => r.siteId === selectedSiteId)?.fullName || 'All Dealership Rooftops'}
-                  </span>
+
+            {isTechnician ? (
+              <div className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-slate-500">Rooftop:</span>
+                <span className="font-extrabold text-[#D71920]">
+                  {activeRooftopLabel}
+                </span>
+                <span className="ml-1 px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-bold text-slate-600 border border-slate-200">
+                  Technician View
+                </span>
+              </div>
+            ) : (
+              <div className="relative group inline-flex items-center">
+                <select
+                  value={selectedSiteId}
+                  onChange={(e) => setSelectedSiteId(e.target.value)}
+                  className="bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-xs focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden cursor-pointer"
+                >
+                  {ROOFTOPS.map((rt) => (
+                    <option key={rt.siteId} value={rt.siteId}>
+                      {rt.label}
+                    </option>
+                  ))}
+                </select>
+                {/* Tooltip for selected rooftop */}
+                <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-1.5 hidden group-hover:flex flex-col items-center z-50">
+                  <div className="w-2 h-2 bg-slate-900 rotate-45 -mb-1 border-l border-t border-slate-700/80" />
+                  <div className="bg-slate-900 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap border border-slate-700/80 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D71920]" />
+                    <span>
+                      {selectedSiteId === 'site_dandenong_multi'
+                        ? 'Booran Dandenong Multi-Franchise Dealership'
+                        : ROOFTOPS.find((r) => r.siteId === selectedSiteId)?.fullName || 'All Dealership Rooftops'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <button
-              onClick={fetchData}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
+            )}
           </div>
         }
       />
@@ -563,19 +703,19 @@ export default function LoanersPage() {
             </div>
           </button>
 
-          {/* 3. Out Now */}
+          {/* 3. Active Loans (Service Loaners) */}
           <button
             type="button"
-            onClick={() => setStatusFilter('ACTIVE')}
+            onClick={() => setStatusFilter('ACTIVE_LOAN')}
             className={`text-left bg-white rounded-xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between transition-all cursor-pointer ${
-              statusFilter === 'ACTIVE'
+              statusFilter === 'ACTIVE_LOAN'
                 ? 'ring-2 ring-blue-500 border-transparent shadow-md'
                 : 'border border-slate-200/80 hover:border-slate-300'
             }`}
           >
             <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center justify-between w-full">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Out Now (Active)</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Loans</span>
               <span className="p-2 rounded-lg bg-blue-50 text-blue-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -583,33 +723,33 @@ export default function LoanersPage() {
               </span>
             </div>
             <div className="mt-3">
-              <span className="text-3xl font-black text-blue-600 tracking-tight">{kpis.outNow}</span>
-              <p className="text-xs text-slate-500 mt-1">With customers currently</p>
+              <span className="text-3xl font-black text-blue-600 tracking-tight">{kpis.activeLoans ?? 0}</span>
+              <p className="text-xs text-slate-500 mt-1">Service loaners on road</p>
             </div>
           </button>
 
-          {/* 4. Due Soon */}
+          {/* 4. Active Test Drives */}
           <button
             type="button"
-            onClick={() => setStatusFilter('DUE_SOON')}
+            onClick={() => setStatusFilter('ACTIVE_TEST_DRIVE')}
             className={`text-left bg-white rounded-xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between transition-all cursor-pointer ${
-              statusFilter === 'DUE_SOON'
-                ? 'ring-2 ring-amber-500 border-transparent shadow-md'
+              statusFilter === 'ACTIVE_TEST_DRIVE'
+                ? 'ring-2 ring-purple-500 border-transparent shadow-md'
                 : 'border border-slate-200/80 hover:border-slate-300'
             }`}
           >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500" />
             <div className="flex items-center justify-between w-full">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Due in 60 Min</span>
-              <span className="p-2 rounded-lg bg-amber-50 text-amber-600">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Test Drives</span>
+              <span className="p-2 rounded-lg bg-purple-50 text-purple-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </span>
             </div>
             <div className="mt-3">
-              <span className="text-3xl font-black text-amber-600 tracking-tight">{kpis.dueSoon}</span>
-              <p className="text-xs text-slate-500 mt-1">Expected back shortly</p>
+              <span className="text-3xl font-black text-purple-600 tracking-tight">{kpis.activeTestDrives ?? 0}</span>
+              <p className="text-xs text-slate-500 mt-1">Customer test drives active</p>
             </div>
           </button>
 
@@ -634,7 +774,9 @@ export default function LoanersPage() {
             </div>
             <div className="mt-3">
               <span className="text-3xl font-black text-rose-600 tracking-tight">{kpis.overdue}</span>
-              <p className="text-xs text-rose-600 font-semibold mt-1">Requires advisor attention</p>
+              <p className="text-xs text-rose-600 font-semibold mt-1">
+                {kpis.dueSoon > 0 ? `${kpis.dueSoon} vehicle(s) due soon` : 'Requires advisor attention'}
+              </p>
             </div>
           </button>
         </div>
@@ -642,30 +784,64 @@ export default function LoanersPage() {
         {/* Filter & Search Bar */}
         <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Tab Filter */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
             {[
-              { key: 'ALL', label: 'All Fleet' },
-              { key: 'AVAILABLE', label: 'Available (In Depot)' },
-              { key: 'ACTIVE', label: 'Active Loans' },
-              { key: 'DUE_SOON', label: 'Due in 60m' },
-              { key: 'OVERDUE', label: 'Overdue' },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setStatusFilter(tab.key as any)}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-                  statusFilter === tab.key
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              { key: 'ALL', label: 'All Fleet', count: kpis.totalCars ?? agreements.length },
+              { key: 'ACTIVE_LOAN', label: 'Active Loans', count: kpis.activeLoans, activeStyle: 'bg-blue-600 text-white shadow-xs' },
+              { key: 'ACTIVE_TEST_DRIVE', label: 'Active Test Drives', count: kpis.activeTestDrives, activeStyle: 'bg-purple-600 text-white shadow-xs' },
+              { key: 'AVAILABLE', label: 'Available (In Depot)', count: kpis.available },
+              { key: 'OVERDUE', label: 'Overdue', count: kpis.overdue },
+            ].map((tab) => {
+              const isSelected = statusFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setStatusFilter(tab.key as any)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? (tab.activeStyle || 'bg-white text-slate-900 shadow-xs')
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {typeof tab.count === 'number' && (
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                        isSelected
+                          ? tab.key === 'ACTIVE_TEST_DRIVE' || tab.key === 'ACTIVE_LOAN'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-200 text-slate-800'
+                          : tab.key === 'ACTIVE_TEST_DRIVE' && tab.count > 0
+                          ? 'bg-purple-100 text-purple-700'
+                          : tab.key === 'ACTIVE_LOAN' && tab.count > 0
+                          ? 'bg-blue-100 text-blue-700'
+                          : tab.key === 'OVERDUE' && tab.count > 0
+                          ? 'bg-rose-100 text-rose-700 font-bold'
+                          : 'bg-slate-200/70 text-slate-600'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={purposeFilter}
+              onChange={(e) => setPurposeFilter(e.target.value as typeof purposeFilter)}
+              className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-hidden focus:ring-2 focus:ring-[#D71920]"
+              aria-label="Agreement purpose filter"
+            >
+              <option value="ALL">All purposes</option>
+              <option value="SERVICE_LOANER">Service loaners only</option>
+              <option value="TEST_DRIVE">Test drives only</option>
+            </select>
+
           {/* Search Box */}
-          <div className="relative w-full sm:w-80">
+          <div className="relative w-full sm:w-72">
             <svg
               className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
               fill="none"
@@ -682,6 +858,7 @@ export default function LoanersPage() {
               className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800 focus:bg-white focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden transition-all"
             />
           </div>
+          </div>
         </div>
 
         {/* Agreements Table */}
@@ -692,7 +869,13 @@ export default function LoanersPage() {
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 uppercase text-[11px] font-black tracking-wider">
                   <th className="py-3.5 px-4">Agreement & Rooftop</th>
                   <th className="py-3.5 px-4">Customer Details</th>
-                  <th className="py-3.5 px-4">Loaner Vehicle</th>
+                  <th className="py-3.5 px-4">
+                    {statusFilter === 'ACTIVE_TEST_DRIVE'
+                      ? 'Test Drive Vehicle'
+                      : statusFilter === 'ACTIVE_LOAN'
+                      ? 'Loaner Vehicle'
+                      : 'Vehicle & Purpose'}
+                  </th>
                   <th className="py-3.5 px-4">Time Out / Due</th>
                   <th className="py-3.5 px-4">Excess & Cap</th>
                   <th className="py-3.5 px-4">Status</th>
@@ -729,6 +912,14 @@ export default function LoanersPage() {
                         <td className="py-3.5 px-4">
                           <span className="font-mono text-xs font-bold text-slate-900 block">
                             {ag.agreementNumber}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wide ${
+                            ag.purpose === 'TEST_DRIVE'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${ag.purpose === 'TEST_DRIVE' ? 'bg-purple-600' : 'bg-blue-600'}`} />
+                            {ag.purpose === 'TEST_DRIVE' ? 'Test Drive' : 'Service Loaner'}
                           </span>
                           <div className="relative group inline-block max-w-[170px] mt-0.5">
                             <span
@@ -798,11 +989,58 @@ export default function LoanersPage() {
                           <span className="text-[11px] text-slate-500">
                             {ag.dailyKmCap} km/day • $0.50/km excess
                           </span>
-                          {ag.inbound?.excessKm && ag.inbound.excessKm > 0 ? (
-                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
-                              Excess: +${ag.inbound.excessKmChargeAmount?.toFixed(2)} ({ag.inbound.excessKm} km)
-                            </span>
-                          ) : null}
+                          {(() => {
+                            const fuelOut = ag.outbound?.fuelLevelOutPercent ?? 100;
+                            const fuelIn = ag.inbound?.fuelLevelInPercent ?? fuelOut;
+                            const fuelShortage = Math.max(0, fuelOut - fuelIn);
+                            const fuelCharge = ag.inbound?.fuelChargeAmount !== undefined
+                              ? ag.inbound.fuelChargeAmount
+                              : Number((fuelShortage * 1.50).toFixed(2));
+                            const excessKmCharge = ag.inbound?.excessKmChargeAmount ?? 0;
+                            const damageCharge = ag.inbound?.damageChargeAmount ?? 0;
+                            const incidentExcess = ag.inbound?.applicableExcessAmount ?? 0;
+                            const cleaningFee = ag.inbound?.cleaningFeeAmount ?? 0;
+                            const totalIncurred = ag.inbound?.totalChargesDue !== undefined && ag.inbound.totalChargesDue > 0
+                              ? ag.inbound.totalChargesDue
+                              : Number((excessKmCharge + fuelCharge + damageCharge + incidentExcess + cleaningFee).toFixed(2));
+                            const depositHeld = ag.inbound?.securityDepositHeld ?? ag.securityDepositHeld ?? 500;
+                            const netDue = ag.inbound?.netAmountDue !== undefined
+                              ? ag.inbound.netAmountDue
+                              : Math.max(0, Number((totalIncurred - depositHeld).toFixed(2)));
+                            const refundDue = ag.inbound?.depositRefundAmount !== undefined
+                              ? ag.inbound.depositRefundAmount
+                              : Math.max(0, Number((depositHeld - totalIncurred).toFixed(2)));
+
+                            if (ag.status === 'RETURNED') {
+                              if (netDue > 0) {
+                                return (
+                                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold" title={`Incurred: $${totalIncurred.toFixed(2)} - Deposit: $${depositHeld.toFixed(2)} = Net Due: $${netDue.toFixed(2)}`}>
+                                    Net Paid: ${netDue.toFixed(2)}
+                                  </span>
+                                );
+                              } else if (totalIncurred > 0 && refundDue > 0) {
+                                return (
+                                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold" title={`Incurred: $${totalIncurred.toFixed(2)} deducted from $${depositHeld.toFixed(2)} deposit. Refund: $${refundDue.toFixed(2)}`}>
+                                    Refunded: ${refundDue.toFixed(2)}
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-medium" title={`Zero charges incurred. Deposit ($${depositHeld.toFixed(2)}) refunded.`}>
+                                    Nil Due ($0.00)
+                                  </span>
+                                );
+                              }
+                            }
+                            if (ag.inbound?.excessKm && ag.inbound.excessKm > 0) {
+                              return (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                                  Excess: +${ag.inbound.excessKmChargeAmount?.toFixed(2)} ({ag.inbound.excessKm} km)
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </td>
 
                         {/* 6. Status */}
@@ -851,6 +1089,17 @@ export default function LoanersPage() {
                                 onClick={() => {
                                   setReturnAgreement(ag);
                                   setReturnOdo(String(odoOut + 45));
+                                  setReturnFuel('75');
+                                  setReturnFuelChargeOverride('');
+                                  setReturnHasDamage(false);
+                                  setReturnDamageCharge('150.00');
+                                  setReturnHasIncident(false);
+                                  setReturnExcessBand('Basic Excess ($2,500)');
+                                  setReturnExcessAmount('2500');
+                                  setReturnHasCleaning(false);
+                                  setReturnCleaningFee('120.00');
+                                  setReturnDepositHeld(String(ag.securityDepositHeld ?? 500));
+                                  setReturnNotes('');
                                 }}
                                 className="px-2.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
                                 title="Check In Return"
@@ -968,96 +1217,483 @@ export default function LoanersPage() {
       )}
 
       {/* Return Inspection Modal */}
-      {returnAgreement && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleReturnSubmit}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
-          >
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-lg">Inbound Return Inspection</h3>
-                <p className="text-xs text-slate-300">
-                  {returnAgreement.vehicle.rego} • {returnAgreement.customer.name}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setReturnAgreement(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      {returnAgreement && (() => {
+        const odoOut = returnAgreement.outbound?.odometerOut || 0;
+        const numOdoIn = parseInt(returnOdo, 10) || odoOut;
+        const kmTravelled = Math.max(0, numOdoIn - odoOut);
+        const startMs = new Date(returnAgreement.loanStartDateTime).getTime();
+        const endMs = Date.now();
+        const days = Math.max(1, Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)));
+        const allowableKm = days * (returnAgreement.dailyKmCap || 50);
+        const excessKm = Math.max(0, kmTravelled - allowableKm);
+        const excessRate = returnAgreement.excessKmRate || 0.50;
+        const excessKmCharge = Number((excessKm * excessRate).toFixed(2));
 
-            <div className="p-6 space-y-4">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
-                Outbound Odometer was <span className="font-bold">{returnAgreement.outbound.odometerOut.toLocaleString()} km</span>.
-                Daily Allowance: 50 km/day. Excess: $0.50/km.
-              </div>
+        const fuelOut = returnAgreement.outbound?.fuelLevelOutPercent ?? 100;
+        const numFuelIn = Math.min(100, Math.max(0, parseInt(returnFuel, 10) || 0));
+        const fuelShortage = Math.max(0, fuelOut - numFuelIn);
+        const autoFuelCharge = Number((fuelShortage * 1.50).toFixed(2));
+        const finalFuelCharge = returnFuelChargeOverride !== ''
+          ? Math.max(0, parseFloat(returnFuelChargeOverride) || 0)
+          : autoFuelCharge;
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Inbound Odometer (km) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={returnOdo}
-                  onChange={(e) => setReturnOdo(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-hidden"
-                />
-              </div>
+        const finalDamageCharge = returnHasDamage ? Math.max(0, parseFloat(returnDamageCharge) || 0) : 0;
+        const finalExcessCharge = returnHasIncident ? Math.max(0, parseFloat(returnExcessAmount) || 0) : 0;
+        const finalCleaningCharge = returnHasCleaning ? Math.max(0, parseFloat(returnCleaningFee) || 0) : 0;
+        const totalIncurred = Number(
+          (excessKmCharge + finalFuelCharge + finalDamageCharge + finalExcessCharge + finalCleaningCharge).toFixed(2)
+        );
+        const depositHeld = Math.max(0, parseFloat(returnDepositHeld) || 0);
+        const netAmountDue = Math.max(0, Number((totalIncurred - depositHeld).toFixed(2)));
+        const depositRefundAmount = Math.max(0, Number((depositHeld - totalIncurred).toFixed(2)));
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Fuel / Battery Level (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={returnFuel}
-                  onChange={(e) => setReturnFuel(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-hidden"
-                />
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <form
+              onSubmit={handleReturnSubmit}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh]"
+            >
+              <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-lg">Inbound Check In & Settlement</h3>
+                  <p className="text-xs text-slate-300">
+                    {returnAgreement.vehicle.rego} • {returnAgreement.vehicle.year} {returnAgreement.vehicle.make} {returnAgreement.vehicle.model} • Borrower: {returnAgreement.customer.name}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReturnAgreement(null)}
+                  className="text-slate-400 hover:text-white"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Return Inspection Notes
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Checked exterior, interior, tyres and fuel. Nil issues."
-                  value={returnNotes}
-                  onChange={(e) => setReturnNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-hidden"
-                />
-              </div>
-            </div>
+              <div className="p-6 space-y-4 overflow-y-auto">
+                {/* 1. Odometer Reading */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Inbound Odometer (km) *
+                    </label>
+                    <span className="text-xs text-slate-500 font-medium">
+                      Outbound: <strong className="text-slate-800">{odoOut.toLocaleString()} km</strong>
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    required
+                    value={returnOdo}
+                    onChange={(e) => setReturnOdo(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-hidden bg-white"
+                  />
+                  <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
+                    <span>Travelled: <strong>{kmTravelled} km</strong></span>
+                    <span>Cap ({days}d × {returnAgreement.dailyKmCap || 50}km): <strong>{allowableKm} km</strong></span>
+                    {excessKm > 0 ? (
+                      <span className="text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                        +{excessKm} km excess (${excessKmCharge.toFixed(2)})
+                      </span>
+                    ) : (
+                      <span className="text-emerald-600 font-medium">Within daily limit</span>
+                    )}
+                  </div>
+                </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setReturnAgreement(null)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submittingReturn}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-2"
-              >
-                {submittingReturn ? 'Submitting...' : 'Confirm Vehicle Return'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+                {/* 2. Fuel Level & Price Impact */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Inbound Fuel Level (%)
+                    </label>
+                    <span className="text-xs text-slate-500 font-medium">
+                      Outbound Fuel: <strong className="text-slate-800">{fuelOut}%</strong>
+                    </span>
+                  </div>
+
+                  {/* Preset chips */}
+                  <div className="flex items-center gap-2 mb-2.5">
+                    {['25', '50', '75', '100'].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          setReturnFuel(pct);
+                          setReturnFuelChargeOverride('');
+                        }}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                          returnFuel === pct
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                    <div className="w-24 relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={returnFuel}
+                        onChange={(e) => {
+                          setReturnFuel(e.target.value);
+                          setReturnFuelChargeOverride('');
+                        }}
+                        className="w-full px-2 py-1.5 text-center text-xs font-bold border border-slate-300 rounded-lg bg-white"
+                        placeholder="Custom %"
+                      />
+                      <span className="absolute right-2 top-1.5 text-xs text-slate-400 font-bold">%</span>
+                    </div>
+                  </div>
+
+                  {/* Fuel Deficit Price Feedback */}
+                  {fuelShortage > 0 ? (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-rose-800">
+                          Fuel Deficit: -{fuelShortage}% (Out: {fuelOut}% → In: {numFuelIn}%)
+                        </p>
+                        <p className="text-[11px] text-rose-600">
+                          Refuel Charge: ${autoFuelCharge.toFixed(2)} ($1.50 per 1% shortage)
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder={autoFuelCharge.toFixed(2)}
+                          value={returnFuelChargeOverride}
+                          onChange={(e) => setReturnFuelChargeOverride(e.target.value)}
+                          className="w-20 px-2 py-1 text-xs text-right font-bold border border-rose-300 rounded bg-white"
+                          title="Override charge amount"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setReturnFuelChargeOverride('0')}
+                          className="text-[10px] px-2 py-1 bg-white hover:bg-slate-100 text-slate-600 font-bold border border-slate-300 rounded"
+                        >
+                          Waive
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-semibold flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Fuel Verified: Returned full / matched outbound ($0.00 refueling fee)
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Damage & Accident Surcharges */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Damage, Fault & Accident Surcharges
+                  </h4>
+
+                  {/* Damage Toggle */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Damage / Fault Observed on Return?</p>
+                      <p className="text-[11px] text-slate-500">Scratches, scuffs, kerb rash, or mechanical defect</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReturnHasDamage(!returnHasDamage)}
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
+                        returnHasDamage
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      }`}
+                    >
+                      {returnHasDamage ? 'YES' : 'NO'}
+                    </button>
+                  </div>
+
+                  {returnHasDamage && (
+                    <div className="p-3 bg-white border border-rose-200 rounded-lg space-y-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Damage & Fault Details:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Scuff on rear bumper, alloy wheel rash..."
+                          value={returnNotes}
+                          onChange={(e) => setReturnNotes(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs text-slate-900"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-700">
+                          Damage / Repair Estimate Charge ($):
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={returnDamageCharge}
+                          onChange={(e) => setReturnDamageCharge(e.target.value)}
+                          className="w-28 px-2 py-1 text-xs text-right font-bold border border-slate-300 rounded"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Incident / Accident Toggle */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">At-Fault Accident / Major Incident?</p>
+                      <p className="text-[11px] text-slate-500">Applies Borrower Insurance Excess Schedule (Clause 11)</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReturnHasIncident(!returnHasIncident)}
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
+                        returnHasIncident
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      }`}
+                    >
+                      {returnHasIncident ? 'YES' : 'NO'}
+                    </button>
+                  </div>
+
+                  {returnHasIncident && (
+                    <div className="p-3 bg-white border border-rose-200 rounded-lg space-y-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Insurance Excess Schedule Band:
+                        </label>
+                        <select
+                          value={returnExcessBand}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setReturnExcessBand(val);
+                            if (val.includes('2,500')) setReturnExcessAmount('2500');
+                            else if (val.includes('3,750')) setReturnExcessAmount('3750');
+                            else if (val.includes('3,250')) setReturnExcessAmount('3250');
+                          }}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded text-xs font-medium text-slate-800"
+                        >
+                          <option value="Basic Excess ($2,500)">Basic Excess ($2,500 AUD)</option>
+                          <option value="Age Under 21 yrs ($3,750)">Age Under 21 yrs (+$1,250 = $3,750 AUD)</option>
+                          <option value="Age 21–25 yrs ($3,250)">Age 21–25 yrs (+$750 = $3,250 AUD)</option>
+                          <option value="Licence < 2 yrs / Int ($3,250)">Licence &lt; 2 yrs / Int (+$750 = $3,250 AUD)</option>
+                          <option value="Custom Agreed Excess">Custom Agreed Excess</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-700">
+                          Insurance Excess Payable ($):
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={returnExcessAmount}
+                          onChange={(e) => setReturnExcessAmount(e.target.value)}
+                          className="w-28 px-2 py-1 text-xs text-right font-bold border border-slate-300 rounded"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cleaning Toggle */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Detailing / Deep Cleaning Required?</p>
+                      <p className="text-[11px] text-slate-500">Smoking breach, pet stains, or heavy soiling</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReturnHasCleaning(!returnHasCleaning)}
+                      className={`px-3 py-1 text-xs font-bold rounded-full transition-all ${
+                        returnHasCleaning
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      }`}
+                    >
+                      {returnHasCleaning ? 'YES' : 'NO'}
+                    </button>
+                  </div>
+
+                  {returnHasCleaning && (
+                    <div className="p-3 bg-white border border-rose-200 rounded-lg flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        Detailing Surcharge ($):
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={returnCleaningFee}
+                        onChange={(e) => setReturnCleaningFee(e.target.value)}
+                        className="w-28 px-2 py-1 text-xs text-right font-bold border border-slate-300 rounded"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Security Deposit / Pre-auth Held */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Security Deposit / Pre-Auth Held ($)
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Subtracted from charges at return to calculate net amount due or refund
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-500">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={returnDepositHeld}
+                        onChange={(e) => setReturnDepositHeld(e.target.value)}
+                        className="w-24 px-2 py-1 text-xs text-right font-bold border border-slate-300 rounded bg-white text-slate-900 focus:ring-1 focus:ring-emerald-500 outline-hidden"
+                        placeholder="500.00"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Live Check-In Pricing Summary Card */}
+                <div className="bg-slate-900 text-white rounded-xl p-4 shadow-md">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-700 mb-2.5">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      Live Settlement Breakdown
+                    </span>
+                    <span className="text-[11px] text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700">
+                      Auto-Calculated
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span>Excess Kilometres ({excessKm} km @ $0.50/km):</span>
+                      <span className={`font-semibold ${excessKmCharge > 0 ? 'text-amber-400 font-bold' : ''}`}>
+                        ${excessKmCharge.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between text-slate-300">
+                      <span>Fuel Deficit ({fuelShortage > 0 ? `-${fuelShortage}% shortage` : 'Equal/Full'}):</span>
+                      <span className={`font-semibold ${finalFuelCharge > 0 ? 'text-amber-400 font-bold' : ''}`}>
+                        ${finalFuelCharge.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {returnHasDamage && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Damage / Repair Cost:</span>
+                        <span className="text-rose-400 font-bold">${finalDamageCharge.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {returnHasIncident && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Insurance Incident Excess ({returnExcessBand}):</span>
+                        <span className="text-rose-400 font-bold">${finalExcessCharge.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {returnHasCleaning && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Detailing / Sanitisation Fee:</span>
+                        <span className="text-rose-400 font-bold">${finalCleaningCharge.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {/* Subtotal of Incurred Charges */}
+                    <div className="flex justify-between text-slate-200 pt-2 border-t border-slate-700 font-bold">
+                      <span>Total Incurred Charges:</span>
+                      <span className={totalIncurred > 0 ? 'text-amber-300' : 'text-slate-300'}>
+                        ${totalIncurred.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Deduct Security Deposit */}
+                    <div className="flex justify-between text-emerald-400 font-bold">
+                      <span>Less Security Deposit Held:</span>
+                      <span>-${depositHeld.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Net Result Highlight */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-700 flex items-center justify-between">
+                    <div>
+                      {netAmountDue > 0 ? (
+                        <>
+                          <span className="text-xs font-black uppercase text-rose-400 block tracking-wide">
+                            Net Amount to be Paid
+                          </span>
+                          <span className="text-[10px] text-slate-300">
+                            Charges (${totalIncurred.toFixed(2)}) exceed deposit (${depositHeld.toFixed(2)}) — collect from borrower
+                          </span>
+                        </>
+                      ) : depositRefundAmount > 0 ? (
+                        <>
+                          <span className="text-xs font-black uppercase text-emerald-400 block tracking-wide">
+                            Deposit Refund Due to Borrower
+                          </span>
+                          <span className="text-[10px] text-slate-300">
+                            Deposit (${depositHeld.toFixed(2)}) minus charges (${totalIncurred.toFixed(2)}) — release to borrower card
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-xs font-black uppercase text-slate-200 block tracking-wide">
+                            Settlement Balanced (Nil Due)
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Charges exactly equal deposit held ($0.00 balance)
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <span className={`text-xl font-black ${
+                      netAmountDue > 0 ? 'text-rose-400' : depositRefundAmount > 0 ? 'text-emerald-400' : 'text-slate-300'
+                    }`}>
+                      {netAmountDue > 0
+                        ? `$${netAmountDue.toFixed(2)}`
+                        : depositRefundAmount > 0
+                        ? `$${depositRefundAmount.toFixed(2)}`
+                        : '$0.00'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReturnAgreement(null)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReturn}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  {submittingReturn
+                    ? 'Submitting...'
+                    : netAmountDue > 0
+                    ? `Confirm Return (Collect $${netAmountDue.toFixed(2)})`
+                    : depositRefundAmount > 0
+                    ? `Confirm Return (Refund $${depositRefundAmount.toFixed(2)})`
+                    : 'Confirm Return (Nil Due)'}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      })()}
 
       {/* Read: Details Modal */}
       {detailsAgreement && (
@@ -1190,37 +1826,177 @@ export default function LoanersPage() {
               </div>
 
               {/* Inbound Return Record (if returned) */}
-              {detailsAgreement.inbound && (
-                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4">
-                  <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-3">Inbound Return Record</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                    <div>
-                      <span className="text-emerald-700 block font-medium">Returned At</span>
-                      <span className="font-bold text-slate-900">{formatDueTime(detailsAgreement.inbound.returnedAt || (detailsAgreement.inbound as any).returnedDateTime)}</span>
+              {detailsAgreement.inbound && (() => {
+                const fuelOut = detailsAgreement.outbound?.fuelLevelOutPercent ?? 100;
+                const fuelIn = detailsAgreement.inbound.fuelLevelInPercent ?? fuelOut;
+                const fuelShortage = Math.max(0, fuelOut - fuelIn);
+                const fuelCharge = detailsAgreement.inbound.fuelChargeAmount !== undefined
+                  ? detailsAgreement.inbound.fuelChargeAmount
+                  : Number((fuelShortage * 1.50).toFixed(2));
+
+                const excessKmCharge = detailsAgreement.inbound.excessKmChargeAmount ?? 0;
+                const damageCharge = detailsAgreement.inbound.damageChargeAmount ?? 0;
+                const incidentExcess = detailsAgreement.inbound.applicableExcessAmount ?? 0;
+                const cleaningFee = detailsAgreement.inbound.cleaningFeeAmount ?? 0;
+
+                const computedTotal = Number(
+                  (excessKmCharge + fuelCharge + damageCharge + incidentExcess + cleaningFee).toFixed(2)
+                );
+                const totalIncurred = detailsAgreement.inbound.totalChargesDue !== undefined && detailsAgreement.inbound.totalChargesDue > 0
+                  ? detailsAgreement.inbound.totalChargesDue
+                  : computedTotal;
+                const depositHeld = detailsAgreement.inbound.securityDepositHeld ?? detailsAgreement.securityDepositHeld ?? 500;
+                const netDue = detailsAgreement.inbound.netAmountDue !== undefined
+                  ? detailsAgreement.inbound.netAmountDue
+                  : Math.max(0, Number((totalIncurred - depositHeld).toFixed(2)));
+                const refundDue = detailsAgreement.inbound.depositRefundAmount !== undefined
+                  ? detailsAgreement.inbound.depositRefundAmount
+                  : Math.max(0, Number((depositHeld - totalIncurred).toFixed(2)));
+
+                return (
+                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                        Inbound Return & Settlement Record
+                      </h4>
+                      {netDue > 0 ? (
+                        <span className="text-xs font-black text-rose-700 bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-300 shadow-2xs">
+                          Net Balance Paid: ${netDue.toFixed(2)} (Charges: ${totalIncurred.toFixed(2)} - Deposit: ${depositHeld.toFixed(2)})
+                        </span>
+                      ) : refundDue > 0 && totalIncurred > 0 ? (
+                        <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-300">
+                          Deposit Refunded: ${refundDue.toFixed(2)} (Charges: ${totalIncurred.toFixed(2)} from ${depositHeld.toFixed(2)})
+                        </span>
+                      ) : totalIncurred === 0 ? (
+                        <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300">
+                          Clean Return • Full Deposit Refunded (${depositHeld.toFixed(2)})
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-300">
+                          Settlement Balanced ($0.00 Balance)
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <span className="text-emerald-700 block font-medium">Odometer In</span>
-                      <span className="font-bold text-slate-900">{detailsAgreement.inbound.odometerIn?.toLocaleString()} km</span>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                      <div>
+                        <span className="text-emerald-700 block font-medium">Returned At</span>
+                        <span className="font-bold text-slate-900">{formatDueTime(detailsAgreement.inbound.returnedAt || (detailsAgreement.inbound as any).returnedDateTime)}</span>
+                      </div>
+                      <div>
+                        <span className="text-emerald-700 block font-medium">Odometer In</span>
+                        <span className="font-bold text-slate-900">{detailsAgreement.inbound.odometerIn?.toLocaleString()} km</span>
+                      </div>
+                      <div>
+                        <span className="text-emerald-700 block font-medium">Distance Travelled</span>
+                        <span className="font-bold text-slate-900">
+                          {((detailsAgreement.inbound.odometerIn || 0) - (detailsAgreement.outbound?.odometerOut || 0))} km
+                        </span>
+                        {detailsAgreement.inbound.excessKm !== undefined && detailsAgreement.inbound.excessKm > 0 && (
+                          <span className="text-[10px] text-amber-700 font-bold block">
+                            +{detailsAgreement.inbound.excessKm} km excess (${excessKmCharge.toFixed(2)})
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-emerald-700 block font-medium">Fuel Level In</span>
+                        <span className="font-bold text-slate-900">{detailsAgreement.inbound.fuelLevelInPercent ?? 'N/A'}%</span>
+                        {fuelCharge > 0 ? (
+                          <span className="text-[10px] text-amber-700 font-bold block">
+                            Refuel Charge: ${fuelCharge.toFixed(2)}
+                            {fuelShortage > 0 ? ` (-${fuelShortage}%)` : ''}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-emerald-600 font-medium block">
+                            No Refuel Charge
+                          </span>
+                        )}
+                      </div>
+
+                      {damageCharge > 0 && (
+                        <div>
+                          <span className="text-rose-700 block font-medium">Damage / Repair Fee</span>
+                          <span className="font-bold text-rose-800">${damageCharge.toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      {(detailsAgreement.inbound.hasDamageIncident || incidentExcess > 0) && (
+                        <div>
+                          <span className="text-rose-700 block font-medium">Insurance Incident Excess</span>
+                          <span className="font-bold text-rose-800">
+                            ${incidentExcess.toFixed(2)} ({detailsAgreement.inbound.applicableExcessBand || 'Basic Excess'})
+                          </span>
+                        </div>
+                      )}
+
+                      {cleaningFee > 0 && (
+                        <div>
+                          <span className="text-rose-700 block font-medium">Detailing Surcharge</span>
+                          <span className="font-bold text-rose-800">${cleaningFee.toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <span className="text-emerald-700 block font-medium">Distance Travelled</span>
-                      <span className="font-bold text-slate-900">
-                        {((detailsAgreement.inbound.odometerIn || 0) - (detailsAgreement.outbound?.odometerOut || 0))} km
-                      </span>
+
+                    {/* Financial Reconciliation Box */}
+                    <div className="mt-3 p-3 bg-white rounded-lg border border-emerald-200 text-xs space-y-1.5 shadow-2xs">
+                      <div className="flex justify-between text-slate-600 font-medium">
+                        <span>Total Incurred Return Charges:</span>
+                        <span className="font-bold text-slate-900">${totalIncurred.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-700 font-medium">
+                        <span>Less Security Deposit Held:</span>
+                        <span className="font-bold">-${depositHeld.toFixed(2)}</span>
+                      </div>
+                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
+                        {netDue > 0 ? (
+                          <>
+                            <div>
+                              <span className="font-black text-rose-700 uppercase block tracking-wide">
+                                Net Amount Paid by Borrower:
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                Excess charged above security deposit
+                              </span>
+                            </div>
+                            <span className="text-base font-black text-rose-700">${netDue.toFixed(2)}</span>
+                          </>
+                        ) : refundDue > 0 ? (
+                          <>
+                            <div>
+                              <span className="font-black text-emerald-700 uppercase block tracking-wide">
+                                Deposit Refund Due to Borrower:
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                Released back to card after deducting charges
+                              </span>
+                            </div>
+                            <span className="text-base font-black text-emerald-700">${refundDue.toFixed(2)}</span>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <span className="font-black text-slate-700 uppercase block tracking-wide">
+                                Settlement Balanced:
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                Charges exactly equal security deposit
+                              </span>
+                            </div>
+                            <span className="text-base font-black text-slate-800">$0.00</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-emerald-700 block font-medium">Fuel Level In</span>
-                      <span className="font-bold text-slate-900">{detailsAgreement.inbound.fuelLevelInPercent ?? 'N/A'}%</span>
-                    </div>
+
+                    {detailsAgreement.inbound.returnDamageNotes && (
+                      <div className="mt-3 text-xs bg-white/90 p-2.5 rounded-lg border border-emerald-200 text-slate-800">
+                        <span className="font-semibold text-slate-600 block">Inspection & Damage Notes:</span>
+                        {detailsAgreement.inbound.returnDamageNotes}
+                      </div>
+                    )}
                   </div>
-                  {detailsAgreement.inbound.returnDamageNotes && (
-                    <div className="mt-3 text-xs bg-white/80 p-2.5 rounded-lg border border-emerald-200 text-slate-800">
-                      <span className="font-semibold text-slate-600 block">Inspection Notes:</span>
-                      {detailsAgreement.inbound.returnDamageNotes}
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
@@ -1456,9 +2232,11 @@ export default function LoanersPage() {
           >
             <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-lg">Issue Loan Vehicle</h3>
+                <h3 className="font-bold text-lg">
+                  {issuePurpose === 'TEST_DRIVE' ? 'Start Test Drive' : 'Issue Service Loaner'}
+                </h3>
                 <p className="text-xs text-slate-300">
-                  New electronic service loan agreement & SOW indemnity
+                  New electronic {issuePurpose === 'TEST_DRIVE' ? 'test drive' : 'service loan'} agreement & SOW indemnity
                 </p>
               </div>
               <button
@@ -1473,20 +2251,61 @@ export default function LoanersPage() {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Agreement Purpose *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'SERVICE_LOANER', label: 'Service Loaner' },
+                    { value: 'TEST_DRIVE', label: 'Test Drive' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        const purpose = option.value as typeof issuePurpose;
+                        setIssuePurpose(purpose);
+                        setIssueDueHours(purpose === 'TEST_DRIVE' ? '1' : '24');
+                      }}
+                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
+                        issuePurpose === option.value
+                          ? 'bg-[#D71920] text-white border-[#D71920]'
+                          : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Rooftop Selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Dealership Rooftop *</label>
-                <select
-                  value={issueSiteId}
-                  onChange={(e) => setIssueSiteId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden bg-white"
-                >
-                  {ROOFTOPS.filter((r) => r.siteId !== 'all').map((r) => (
-                    <option key={r.siteId} value={r.siteId}>
-                      {r.fullName || `Booran ${r.label}`}
-                    </option>
-                  ))}
-                </select>
+                {isTechnician ? (
+                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="font-bold text-slate-800">
+                        {ROOFTOPS.find((r) => r.siteId === (technicianSiteId || issueSiteId))?.fullName || activeRooftopLabel}
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-slate-200 text-[11px] font-bold text-slate-600">
+                      Assigned Workshop
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={issueSiteId}
+                    onChange={(e) => setIssueSiteId(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden bg-white"
+                  >
+                    {ROOFTOPS.filter((r) => r.siteId !== 'all').map((r) => (
+                      <option key={r.siteId} value={r.siteId}>
+                        {r.fullName || `Booran ${r.label}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Customer Information */}
@@ -1544,7 +2363,9 @@ export default function LoanersPage() {
 
               {/* Loan Vehicle Details */}
               <div className="space-y-3 pt-2 border-t border-slate-200">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loan Vehicle Details</h4>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {issuePurpose === 'TEST_DRIVE' ? 'Test Drive Vehicle Details' : 'Loan Vehicle Details'}
+                </h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">Registration *</label>
@@ -1591,18 +2412,56 @@ export default function LoanersPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Loan Duration</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {issuePurpose === 'TEST_DRIVE' ? 'Test Drive Duration' : 'Loan Duration'}
+                    </label>
                     <select
                       value={issueDueHours}
                       onChange={(e) => setIssueDueHours(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden bg-white"
                     >
+                      {issuePurpose === 'TEST_DRIVE' && <option value="1">1 Hour</option>}
+                      {issuePurpose === 'TEST_DRIVE' && <option value="2">2 Hours</option>}
                       <option value="4">4 Hours (Same Day Return)</option>
                       <option value="8">8 Hours (End of Day Return)</option>
                       <option value="24">24 Hours (Next Day Return)</option>
                       <option value="48">48 Hours (2 Days)</option>
                       <option value="72">72 Hours (3 Days)</option>
                       <option value="168">7 Days (Full Week)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Security Deposit & Pre-Authorisation */}
+              <div className="space-y-3 pt-2 border-t border-slate-200">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Security Deposit / Bond</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Deposit Amount ($) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="500.00"
+                      value={issueDeposit}
+                      onChange={(e) => setIssueDeposit(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-1 block">Subtracted from inbound charges on return</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Payment / Pre-Auth Method</label>
+                    <select
+                      value={issueDepositMethod}
+                      onChange={(e) => setIssueDepositMethod(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden bg-white"
+                    >
+                      <option value="CARD_PREAUTH">Card Pre-Authorisation ($500 hold)</option>
+                      <option value="CREDIT_CARD">Credit / Debit Card Payment</option>
+                      <option value="CASH">Cash Bond</option>
+                      <option value="EFT">Direct EFT / Bank Transfer</option>
+                      <option value="WAIVED">Waived (Corporate / Internal)</option>
                     </select>
                   </div>
                 </div>
@@ -1638,7 +2497,11 @@ export default function LoanersPage() {
                 disabled={submittingIssue}
                 className="px-5 py-2 bg-[#D71920] hover:bg-[#B91218] text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-2"
               >
-                {submittingIssue ? 'Issuing...' : 'Issue & Activate Loan'}
+                {submittingIssue
+                  ? 'Creating...'
+                  : issuePurpose === 'TEST_DRIVE'
+                    ? 'Start & Activate Test Drive'
+                    : 'Issue & Activate Loan'}
               </button>
             </div>
           </form>

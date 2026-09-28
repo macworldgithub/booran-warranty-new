@@ -66,6 +66,9 @@ function getAuthHeader(): HeadersInit {
         if (user.name) {
           headers["X-User-Name"] = user.name;
         }
+        if (user.defaultSiteId || user.siteId) {
+          headers["X-User-Site-Id"] = user.defaultSiteId || user.siteId;
+        }
       } catch {
         // ignore
       }
