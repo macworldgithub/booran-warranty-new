@@ -28,6 +28,13 @@ function SiteModal({ allBrands, site, onClose, onSaved }: SiteModalProps) {
   const [location, setLocation] = useState(site?.location ?? '');
   const [roPrefix, setRoPrefix] = useState(site?.roPrefix ?? '');
   const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>(site?.authorizedBrandIds ?? []);
+  const [latitude, setLatitude] = useState(site?.latitude !== undefined ? String(site.latitude) : '');
+  const [longitude, setLongitude] = useState(site?.longitude !== undefined ? String(site.longitude) : '');
+  const [geofenceRadiusMeters, setGeofenceRadiusMeters] = useState(
+    site?.geofenceRadiusMeters !== undefined ? String(site.geofenceRadiusMeters) : '200',
+  );
+  const [geofenceEnabled, setGeofenceEnabled] = useState(site?.geofenceEnabled ?? true);
+  const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,20 +44,68 @@ function SiteModal({ allBrands, site, onClose, onSaved }: SiteModalProps) {
     );
   }, []);
 
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocating(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        setLocating(false);
+      },
+      (err) => {
+        setError(`Unable to retrieve GPS coordinates: ${err.message}`);
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
   const handleSave = async () => {
     if (!name.trim() || !location.trim() || !roPrefix.trim()) {
       setError('Rooftop name, address/location, and RO prefix are required.');
       return;
     }
+
+    const latVal = latitude.trim() !== '' ? parseFloat(latitude.trim()) : undefined;
+    const lngVal = longitude.trim() !== '' ? parseFloat(longitude.trim()) : undefined;
+    const radiusVal = geofenceRadiusMeters.trim() !== '' ? parseInt(geofenceRadiusMeters.trim(), 10) : 200;
+
+    if (latVal !== undefined && (isNaN(latVal) || latVal < -90 || latVal > 90)) {
+      setError('Latitude must be a valid number between -90 and 90.');
+      return;
+    }
+    if (lngVal !== undefined && (isNaN(lngVal) || lngVal < -180 || lngVal > 180)) {
+      setError('Longitude must be a valid number between -180 and 180.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
       let saved: Site;
+      const payload = {
+        name,
+        location,
+        roPrefix,
+        latitude: latVal,
+        longitude: lngVal,
+        geofenceRadiusMeters: radiusVal,
+        geofenceEnabled,
+      };
+
       if (isEdit && site) {
-        saved = await api.updateSite(site.id, { name, location, roPrefix });
+        saved = await api.updateSite(site.id, payload);
         saved = await api.updateSiteBrands(site.id, selectedBrandIds);
       } else {
-        saved = await api.createSite({ name, location, roPrefix, authorizedBrandIds: selectedBrandIds });
+        saved = await api.createSite({
+          ...payload,
+          authorizedBrandIds: selectedBrandIds,
+        });
       }
       onSaved(saved);
     } catch (e: unknown) {
@@ -171,6 +226,94 @@ function SiteModal({ allBrands, site, onClose, onSaved }: SiteModalProps) {
             <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
               {selectedBrandIds.length} brand{selectedBrandIds.length !== 1 ? 's' : ''} linked to this site
             </p>
+          </div>
+
+          {/* Geofence & Coordinates Configuration */}
+          <div className="pt-3 border-t border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-slate-800">
+                  Site Geofence & GPS Coordinates
+                </label>
+                <p className="text-[11px] text-slate-500">
+                  Used for staff on-site / off-site presence and road test detection.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGetCurrentLocation}
+                disabled={locating}
+                className="text-[11px] font-semibold text-[#E11F26] hover:bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <svg className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>{locating ? 'Detecting GPS...' : 'Use My GPS'}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Latitude
+                </label>
+                <input
+                  type="text"
+                  className="input-field w-full text-xs font-mono"
+                  placeholder="e.g. -38.0992"
+                  value={latitude}
+                  onChange={(e) => setLatitude(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Longitude
+                </label>
+                <input
+                  type="text"
+                  className="input-field w-full text-xs font-mono"
+                  placeholder="e.g. 145.2813"
+                  value={longitude}
+                  onChange={(e) => setLongitude(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 items-center">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                  Geofence Radius (meters)
+                </label>
+                <input
+                  type="number"
+                  min="50"
+                  max="1000"
+                  step="25"
+                  className="input-field w-full text-xs font-mono"
+                  placeholder="200"
+                  value={geofenceRadiusMeters}
+                  onChange={(e) => setGeofenceRadiusMeters(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={geofenceEnabled}
+                    onChange={(e) => setGeofenceEnabled(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#E11F26] focus:ring-[#E11F26] border-slate-300"
+                  />
+                  <span className="text-xs font-semibold text-slate-700">
+                    Geofence Active
+                  </span>
+                </label>
+                <p className="text-[10px] text-slate-400 mt-0.5 ml-6">
+                  Track technician on/off site presence
+                </p>
+              </div>
+            </div>
           </div>
 
           {error && (
@@ -592,6 +735,30 @@ export default function SitesPage() {
                           ))
                         )}
                       </div>
+                    </div>
+
+                    {/* Geofence & Coordinates Badge */}
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <svg className="w-3.5 h-3.5 text-[#E11F26] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {site.latitude !== undefined && site.longitude !== undefined ? (
+                          <span className="font-mono text-[11px] text-slate-700 truncate">
+                            {site.latitude.toFixed(4)}, {site.longitude.toFixed(4)}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 text-[11px] italic">No GPS coordinates set</span>
+                        )}
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                        site.geofenceEnabled !== false && site.latitude !== undefined && site.longitude !== undefined
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {site.geofenceRadiusMeters ?? 200}m Geofence
+                      </span>
                     </div>
                   </div>
 

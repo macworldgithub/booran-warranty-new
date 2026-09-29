@@ -52,6 +52,10 @@ export interface Site {
   roPrefix: string;
   authorizedBrandIds: string[];
   isActive: boolean;
+  latitude?: number;
+  longitude?: number;
+  geofenceRadiusMeters?: number;
+  geofenceEnabled?: boolean;
 }
 
 export interface Brand {

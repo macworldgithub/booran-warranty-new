@@ -362,6 +362,10 @@ export const api = {
     location: string;
     roPrefix: string;
     authorizedBrandIds?: string[];
+    latitude?: number;
+    longitude?: number;
+    geofenceRadiusMeters?: number;
+    geofenceEnabled?: boolean;
   }): Promise<Site> {
     const res = await fetch(`${BASE_URL}/sites`, {
       method: "POST",
@@ -376,6 +380,10 @@ export const api = {
     location?: string;
     roPrefix?: string;
     isActive?: boolean;
+    latitude?: number;
+    longitude?: number;
+    geofenceRadiusMeters?: number;
+    geofenceEnabled?: boolean;
   }): Promise<Site> {
     const res = await fetch(`${BASE_URL}/sites/${id}`, {
       method: "PATCH",
@@ -918,5 +926,55 @@ export const api = {
 
   getLoanAgreementPdfUrl(id: string): string {
     return `${BASE_URL}/loan-agreements/${id}/pdf`;
+  },
+
+  // Geofence & Staff Presence
+  async getGeofenceRoster(siteId: string): Promise<{
+    siteId: string;
+    onSiteCount: number;
+    offSiteCount: number;
+    totalTracked: number;
+    roster: Array<{
+      technicianId: string;
+      technicianName: string;
+      email: string;
+      siteId: string;
+      siteName?: string;
+      status: 'ON_SITE' | 'OFF_SITE';
+      distanceMeters: number;
+      speedKmh: number;
+      currentActivity: string;
+      activeRoNumber?: string;
+      lastPingAt: string;
+    }>;
+  }> {
+    const res = await fetch(`${BASE_URL}/geofence/roster/${siteId}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getGeofenceEvents(siteId: string, limit = 50): Promise<Array<{
+    technicianId: string;
+    technicianName: string;
+    eventType: 'ENTER' | 'EXIT';
+    siteId: string;
+    siteName?: string;
+    distanceMeters?: number;
+    activeRoNumber?: string;
+    notes?: string;
+    timestamp: string;
+  }>> {
+    const res = await fetch(`${BASE_URL}/geofence/events/${siteId}?limit=${limit}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getGeofenceSummary(): Promise<any> {
+    const res = await fetch(`${BASE_URL}/geofence/summary`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
   },
 };
