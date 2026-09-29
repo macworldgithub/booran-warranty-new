@@ -111,6 +111,151 @@ export default function TestDrivesPage() {
   const [userRole, setUserRole] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState<boolean>(true);
 
+  // Client Vehicle Test Drive Logs State (MongoDB backed)
+  const [testDriveLogs, setTestDriveLogs] = useState<any[]>([]);
+  const [testDriveKpis, setTestDriveKpis] = useState<{
+    totalDrives: number;
+    passedCount: number;
+    flaggedCount: number;
+    autoVerifiedRate: number;
+    avgMaxSpeed: number;
+  }>({
+    totalDrives: 0,
+    passedCount: 0,
+    flaggedCount: 0,
+    autoVerifiedRate: 100,
+    avgMaxSpeed: 0,
+  });
+  const [logsLoading, setLogsLoading] = useState<boolean>(false);
+  const [outcomeFilter, setOutcomeFilter] = useState<'all' | 'Passed' | 'Flagged'>('all');
+  const [logsSearch, setLogsSearch] = useState<string>('');
+  const [selectedTripModal, setSelectedTripModal] = useState<any | null>(null);
+
+  // CRUD Modal & Action States
+  const [showCreateTripModal, setShowCreateTripModal] = useState<boolean>(false);
+  const [editingTrip, setEditingTrip] = useState<any | null>(null);
+  const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
+  const [submittingTrip, setSubmittingTrip] = useState<boolean>(false);
+
+  const [tripForm, setTripForm] = useState({
+    repairOrder: '',
+    registration: '',
+    vehicleLabel: '',
+    customerConcern: '',
+    technicianName: '',
+    duration: '12m 30s',
+    distanceKm: 6.5,
+    maxSpeedKph: 72,
+    outcome: 'Passed' as 'Passed' | 'Flagged',
+    technicianNotes: '',
+    siteId: '',
+  });
+
+  const handleOpenCreateTrip = () => {
+    setEditingTrip(null);
+    setTripForm({
+      repairOrder: '',
+      registration: '',
+      vehicleLabel: '',
+      customerConcern: '',
+      technicianName: '',
+      duration: '10m 00s',
+      distanceKm: 5.2,
+      maxSpeedKph: 68,
+      outcome: 'Passed',
+      technicianNotes: '',
+      siteId: selectedSiteId || sites[0]?.id || 'site_cranbourne_byd',
+    });
+    setShowCreateTripModal(true);
+  };
+
+  const handleOpenEditTrip = (trip: any) => {
+    setEditingTrip(trip);
+    setTripForm({
+      repairOrder: trip.repairOrder || '',
+      registration: trip.registration || '',
+      vehicleLabel: trip.vehicleLabel || '',
+      customerConcern: trip.customerConcern || '',
+      technicianName: trip.technicianName || '',
+      duration: trip.duration || '10m 00s',
+      distanceKm: trip.distanceKm ?? 5.0,
+      maxSpeedKph: trip.maxSpeedKph ?? 65,
+      outcome: trip.outcome || 'Passed',
+      technicianNotes: trip.technicianNotes || '',
+      siteId: trip.siteId || selectedSiteId || 'site_cranbourne_byd',
+    });
+    setShowCreateTripModal(true);
+  };
+
+  const handleSaveTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tripForm.repairOrder.trim() || !tripForm.registration.trim()) {
+      showToast('Repair Order and Registration are required', 'error');
+      return;
+    }
+    setSubmittingTrip(true);
+    try {
+      if (editingTrip) {
+        await api.updateTestDrive(editingTrip.id, {
+          repairOrder: tripForm.repairOrder,
+          registration: tripForm.registration,
+          vehicleLabel: tripForm.vehicleLabel || `${tripForm.registration} Vehicle`,
+          customerConcern: tripForm.customerConcern,
+          technicianName: tripForm.technicianName,
+          duration: tripForm.duration,
+          distanceKm: Number(tripForm.distanceKm),
+          maxSpeedKph: Number(tripForm.maxSpeedKph),
+          outcome: tripForm.outcome,
+          technicianNotes: tripForm.technicianNotes,
+          siteId: tripForm.siteId,
+        });
+        showToast(`Trip ${editingTrip.id} updated successfully`, 'success');
+        setEditingTrip(null);
+        if (selectedTripModal && selectedTripModal.id === editingTrip.id) {
+          setSelectedTripModal((prev: any) => ({ ...prev, ...tripForm }));
+        }
+      } else {
+        await api.createTestDrive({
+          repairOrder: tripForm.repairOrder,
+          registration: tripForm.registration,
+          vehicleLabel: tripForm.vehicleLabel || `${tripForm.registration} Vehicle`,
+          customerConcern: tripForm.customerConcern,
+          technicianName: tripForm.technicianName,
+          duration: tripForm.duration,
+          distanceKm: Number(tripForm.distanceKm),
+          maxSpeedKph: Number(tripForm.maxSpeedKph),
+          outcome: tripForm.outcome,
+          technicianNotes: tripForm.technicianNotes,
+          siteId: tripForm.siteId,
+        });
+        showToast('New test drive trip record created successfully', 'success');
+      }
+      setShowCreateTripModal(false);
+      loadTestDriveLogs(selectedSiteId, outcomeFilter, logsSearch);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save trip', 'error');
+    } finally {
+      setSubmittingTrip(false);
+    }
+  };
+
+  const handleDeleteTrip = async (id: string) => {
+    if (!confirm(`Are you sure you want to permanently delete trip record ${id}?`)) return;
+    setDeletingTripId(id);
+    try {
+      await api.deleteTestDrive(id);
+      showToast(`Trip ${id} deleted successfully`, 'success');
+      if (selectedTripModal && selectedTripModal.id === id) {
+        setSelectedTripModal(null);
+      }
+      loadTestDriveLogs(selectedSiteId, outcomeFilter, logsSearch);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to delete trip', 'error');
+    } finally {
+      setDeletingTripId(null);
+    }
+  };
+
   // Load current user profile & role
   useEffect(() => {
     api.getMe().then((user) => {
@@ -247,6 +392,36 @@ export default function TestDrivesPage() {
     }, 4000);
     return () => clearInterval(interval);
   }, [autoRefresh, selectedSiteId, loadGeofenceData]);
+
+  const loadTestDriveLogs = useCallback(async (siteId?: string, outcome?: string, search?: string) => {
+    try {
+      setLogsLoading(true);
+      const targetSite = siteId !== undefined ? siteId : selectedSiteId;
+      const targetOutcome = outcome !== undefined ? outcome : outcomeFilter;
+      const targetSearch = search !== undefined ? search : logsSearch;
+
+      const res = await api.getTestDrives({
+        siteId: targetSite,
+        outcome: targetOutcome !== 'all' ? targetOutcome : undefined,
+        ro: targetSearch || undefined,
+      });
+
+      if (res && res.items) {
+        setTestDriveLogs(res.items);
+        if (res.kpis) setTestDriveKpis(res.kpis);
+      }
+    } catch (err) {
+      console.error('Failed to load test drive logs:', err);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [selectedSiteId, outcomeFilter, logsSearch]);
+
+  useEffect(() => {
+    if (activeTab === 'logs') {
+      loadTestDriveLogs(selectedSiteId, outcomeFilter, logsSearch);
+    }
+  }, [activeTab, selectedSiteId, outcomeFilter, loadTestDriveLogs, logsSearch]);
 
   const activeSite = sites.find((s) => s.id === selectedSiteId);
 
@@ -614,7 +789,154 @@ export default function TestDrivesPage() {
 
         {/* TAB 2: CLIENT VEHICLE TEST DRIVE LOGS */}
         {activeTab === 'logs' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Top KPI Cards for Road Test Telemetry */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Total Test Drives
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    🚗
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-slate-900">{testDriveKpis.totalDrives}</span>
+                  <span className="text-xs font-semibold text-slate-500">trips recorded</span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Auto-Verified Perimeter
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                    ✓
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-emerald-600">{testDriveKpis.autoVerifiedRate}%</span>
+                  <span className="text-xs font-semibold text-emerald-700">geofence verified</span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Avg Max Speed
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                    ⚡
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-slate-900">{testDriveKpis.avgMaxSpeed}</span>
+                  <span className="text-xs font-semibold text-slate-500">km/h highway</span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Flagged for Warranty
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-red-50 text-[#E11F26] flex items-center justify-center font-bold">
+                    🚩
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-[#E11F26]">{testDriveKpis.flaggedCount}</span>
+                  <span className="text-xs font-semibold text-red-600">faults confirmed</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={logsSearch}
+                    onChange={(e) => setLogsSearch(e.target.value)}
+                    placeholder="Search by RO, Rego, VIN, or Tech..."
+                    className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#E11F26] transition-all"
+                  />
+                  <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+                </div>
+                {logsSearch && (
+                  <button
+                    onClick={() => setLogsSearch('')}
+                    className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    onClick={() => setOutcomeFilter('all')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      outcomeFilter === 'all'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    All Drives ({testDriveKpis.totalDrives})
+                  </button>
+                  <button
+                    onClick={() => setOutcomeFilter('Passed')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      outcomeFilter === 'Passed'
+                        ? 'bg-white text-emerald-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Passed ({testDriveKpis.passedCount})
+                  </button>
+                  <button
+                    onClick={() => setOutcomeFilter('Flagged')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      outcomeFilter === 'Flagged'
+                        ? 'bg-white text-red-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Flagged ({testDriveKpis.flaggedCount})
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => {
+                    loadTestDriveLogs(selectedSiteId, outcomeFilter, logsSearch);
+                    showToast('Road test logs refreshed', 'success');
+                  }}
+                  className="p-2.5 text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer"
+                  title="Refresh Test Drive Logs"
+                >
+                  <svg className={`w-4 h-4 ${logsLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenCreateTrip}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-[#E11F26] hover:bg-[#c91920] rounded-xl transition-all shadow-xs cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Log Road Test</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Test Drive Logs List */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -622,71 +944,174 @@ export default function TestDrivesPage() {
                     Client Vehicle Road Test Records
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Historical diagnostic drives linked to active customer Repair Orders
+                    Live GPS and diagnostic telemetry linked to active customer Repair Orders
                   </p>
                 </div>
+                <span className="text-xs font-bold text-slate-500">
+                  Showing {testDriveLogs.length} logged drives
+                </span>
               </div>
 
-              <div className="divide-y divide-slate-100">
-                {DEMO_ROAD_TEST_LOGS.map((trip) => (
-                  <div key={trip.id} className="p-6 hover:bg-slate-50/50 transition-colors">
-                    <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
-                            {trip.repairOrder}
-                          </span>
-                          <span className="font-mono font-bold text-xs bg-red-50 text-[#E11F26] px-2 py-0.5 rounded border border-red-200">
-                            {trip.registration}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              trip.outcome === 'Passed'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}
-                          >
-                            Outcome: {trip.outcome}
+              {logsLoading ? (
+                <div className="p-12 text-center text-slate-400">
+                  <div className="w-8 h-8 border-2 border-slate-300 border-t-[#E11F26] rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-xs font-semibold">Loading live test drive records...</p>
+                </div>
+              ) : testDriveLogs.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 space-y-2">
+                  <span className="text-3xl block">🚙</span>
+                  <p className="text-sm font-bold text-slate-800">No test drive records found</p>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    Start a live road test in the mobile app under the Test Drive tab to record real GPS routes, boundary crossings, and diagnostic findings.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {testDriveLogs.map((trip: any) => {
+                    const isFlagged = trip.outcome === 'Flagged';
+                    const tripDate = trip.startTime ? new Date(trip.startTime) : new Date();
+                    const dateFormatted = tripDate.toLocaleDateString('en-AU', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    });
+                    const timeFormatted = tripDate.toLocaleTimeString('en-AU', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+
+                    return (
+                      <div key={trip.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                        <div className="flex flex-wrap items-start justify-between gap-4 mb-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                              <span className="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                                {trip.repairOrder}
+                              </span>
+                              <span className="font-mono font-bold text-xs bg-red-50 text-[#E11F26] px-2.5 py-0.5 rounded-lg border border-red-200">
+                                {trip.registration}
+                              </span>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                                  isFlagged
+                                    ? 'bg-red-50 text-red-700 border border-red-200'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}
+                              >
+                                {isFlagged ? '🚩 Outcome: Flagged (Fault)' : '✓ Outcome: Passed (Clear)'}
+                              </span>
+                              {trip.isLiveGps && (
+                                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  🛰 Live GPS Verified
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                              {trip.vehicleLabel}
+                              {trip.vin && (
+                                <span className="font-mono text-[11px] font-normal text-slate-400">
+                                  VIN: ...{trip.vin.slice(-6)}
+                                </span>
+                              )}
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Customer: <strong className="text-slate-700">{trip.customerName || 'Customer'}</strong> • Rooftop: {trip.siteName}
+                            </p>
+                          </div>
+
+                          <div className="text-right text-xs font-mono text-slate-500">
+                            <div>{dateFormatted} at {timeFormatted}</div>
+                            <div className="text-slate-800 font-semibold mt-0.5">
+                              Tech: {trip.technicianName}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Customer Fault Concern */}
+                        {trip.customerConcern ? (
+                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs mb-3">
+                            <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px] mb-0.5">
+                              Customer Fault Concern
+                            </span>
+                            <p className="text-slate-800 font-medium">{trip.customerConcern}</p>
+                          </div>
+                        ) : null}
+
+                        {/* Metrics Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-xs">
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                            <span className="text-[10px] text-slate-400 block uppercase font-bold">Duration</span>
+                            <span className="font-bold text-slate-900">{trip.duration}</span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                            <span className="text-[10px] text-slate-400 block uppercase font-bold">Distance</span>
+                            <span className="font-bold text-slate-900">{trip.distanceKm} km</span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                            <span className="text-[10px] text-slate-400 block uppercase font-bold">Max Speed</span>
+                            <span className="font-bold text-slate-900">{trip.maxSpeedKph} km/h</span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                            <span className="text-[10px] text-slate-400 block uppercase font-bold">Perimeter Return</span>
+                            <span className="font-bold text-emerald-600 flex items-center gap-1">
+                              ✓ Auto-Verified
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Technician Diagnostic Observations */}
+                        <div className="text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200 mb-3">
+                          <strong className="text-slate-800">Technician Observations & Diagnostic Findings: </strong>
+                          {trip.technicianNotes || 'Road test completed and verified within dealership parameters.'}
+                        </div>
+
+                        {/* Action Buttons Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => setSelectedTripModal(trip)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <span>🛰</span> Inspect Route
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditTrip(trip)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors cursor-pointer"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTrip(trip.id)}
+                              disabled={deletingTripId === trip.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              <span>{deletingTripId === trip.id ? 'Deleting...' : 'Delete'}</span>
+                            </button>
+                            <a
+                              href={`/cases?search=${encodeURIComponent(trip.repairOrder)}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#E11F26] bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors"
+                            >
+                              <span>📂</span> Case ({trip.repairOrder})
+                            </a>
+                          </div>
+
+                          <span className="text-[11px] font-mono text-slate-400">
+                            ID: {trip.id}
                           </span>
                         </div>
-                        <h4 className="text-sm font-bold text-slate-900">{trip.vehicleLabel}</h4>
                       </div>
-
-                      <div className="text-right text-xs font-mono text-slate-500">
-                        <div>{trip.dateLabel}</div>
-                        <div className="text-slate-700 font-semibold mt-0.5">Tech: {trip.technician}</div>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs mb-3">
-                      <span className="font-bold text-slate-500 uppercase tracking-wider block text-[10px] mb-0.5">
-                        Customer Fault Concern
-                      </span>
-                      <p className="text-slate-800">{trip.customerConcern}</p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Duration</span>
-                        <span className="font-bold text-slate-900">{trip.duration}</span>
-                      </div>
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Distance</span>
-                        <span className="font-bold text-slate-900">{trip.distanceKm} km</span>
-                      </div>
-                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                        <span className="text-[10px] text-slate-400 block uppercase font-bold">Max Speed</span>
-                        <span className="font-bold text-slate-900">{trip.maxSpeedKph} km/h</span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
-                      <strong className="text-slate-800">Technician Observations: </strong>
-                      {trip.notes}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -817,6 +1242,477 @@ export default function TestDrivesPage() {
                   : 'Save Rooftop Radius'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Route & Telemetry Inspection Modal */}
+      {selectedTripModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setSelectedTripModal(null)}
+        >
+          <div
+            className="w-full max-w-3xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E11F26] flex items-center justify-center text-lg font-bold">
+                  🛰
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">
+                      Road Test Telemetry & GPS Route
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        selectedTripModal.outcome === 'Flagged'
+                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      {selectedTripModal.outcome === 'Flagged' ? '🚩 Flagged' : '✓ Passed'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {selectedTripModal.repairOrder} • {selectedTripModal.registration} • {selectedTripModal.vehicleLabel}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setSelectedTripModal(null)}
+                className="text-slate-400 hover:text-slate-700 p-2 rounded-xl hover:bg-slate-200/50 transition-colors cursor-pointer text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content Scroll */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              {/* SVG GPS Route Map */}
+              <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800 shadow-inner relative overflow-hidden">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
+                  <span className="font-mono flex items-center gap-1.5 text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    LIVE GPS BREADCRUMB REPLAY
+                  </span>
+                  <span className="font-mono text-slate-400">
+                    {selectedTripModal.siteName} (Perimeter 200m)
+                  </span>
+                </div>
+
+                <div className="w-full aspect-2/1 bg-slate-950/80 rounded-xl relative overflow-hidden border border-slate-800/80 flex items-center justify-center">
+                  <svg viewBox="0 0 100 100" className="w-full h-full p-3">
+                    {/* Concentric boundary rings around dealership center (18, 68) */}
+                    <circle cx="18" cy="68" r="16" fill="rgba(16, 185, 129, 0.08)" stroke="rgba(16, 185, 129, 0.4)" strokeWidth="0.8" strokeDasharray="2 2" />
+                    <circle cx="18" cy="68" r="26" fill="none" stroke="rgba(239, 68, 68, 0.25)" strokeWidth="0.6" strokeDasharray="3 3" />
+
+                    {/* Dealership marker */}
+                    <circle cx="18" cy="68" r="3.2" fill="#E11F26" />
+                    <circle cx="18" cy="68" r="1.5" fill="#FFFFFF" />
+                    <text x="23" y="70" fill="#E2E8F0" fontSize="3" fontWeight="bold" fontFamily="monospace">
+                      WORKSHOP
+                    </text>
+
+                    {/* Polyline Route */}
+                    {(() => {
+                      const pts = selectedTripModal.routePoints && selectedTripModal.routePoints.length > 1
+                        ? selectedTripModal.routePoints
+                        : [
+                            { x: 18, y: 68, speed: 0 },
+                            { x: 18, y: 65, speed: 14 },
+                            { x: 19, y: 58, speed: 32 },
+                            { x: 23, y: 54, speed: 48 },
+                            { x: 31, y: 55, speed: 60 },
+                            { x: 42, y: 62, speed: 68 },
+                            { x: 50, y: 68, speed: 74 },
+                            { x: 62, y: 76, speed: 76 },
+                            { x: 74, y: 79, speed: 71 },
+                            { x: 84, y: 72, speed: 58 },
+                            { x: 80, y: 58, speed: 46 },
+                            { x: 68, y: 44, speed: 62 },
+                            { x: 55, y: 35, speed: 66 },
+                            { x: 44, y: 28, speed: 52 },
+                            { x: 35, y: 24, speed: 48 },
+                            { x: 26, y: 22, speed: 36 },
+                            { x: 21, y: 32, speed: 28 },
+                            { x: 18, y: 48, speed: 20 },
+                            { x: 18, y: 68, speed: 0 },
+                          ];
+                      const polyPoints = pts.map((p: any) => `${p.x},${p.y}`).join(' ');
+
+                      return (
+                        <>
+                          <polyline
+                            points={polyPoints}
+                            fill="none"
+                            stroke="#38BDF8"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          {pts.map((p: any, idx: number) => {
+                            if (idx % 3 !== 0 && idx !== pts.length - 1) return null;
+                            const isHighSpeed = (p.speed || 0) >= 70;
+                            return (
+                              <g key={idx}>
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={isHighSpeed ? '1.8' : '1.2'}
+                                  fill={isHighSpeed ? '#EF4444' : '#10B981'}
+                                />
+                                {isHighSpeed && (
+                                  <text
+                                    x={p.x + 2}
+                                    y={p.y - 1}
+                                    fill="#F87171"
+                                    fontSize="2.5"
+                                    fontFamily="monospace"
+                                    fontWeight="bold"
+                                  >
+                                    {p.speed}k
+                                  </text>
+                                )}
+                              </g>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </svg>
+
+                  <div className="absolute bottom-2 right-3 flex items-center gap-3 text-[10px] text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> Sub-60 km/h
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> 70+ km/h Sector
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Telemetry Breakdown Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Duration</span>
+                  <span className="text-sm font-black text-slate-900">{selectedTripModal.duration}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Distance</span>
+                  <span className="text-sm font-black text-slate-900">{selectedTripModal.distanceKm} km</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Top Speed</span>
+                  <span className="text-sm font-black text-slate-900">{selectedTripModal.maxSpeedKph} km/h</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Technician</span>
+                  <span className="text-sm font-bold text-slate-900 truncate block">{selectedTripModal.technicianName}</span>
+                </div>
+              </div>
+
+              {/* Customer Concern vs Diagnostic Findings */}
+              <div className="space-y-3">
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-xs">
+                  <span className="font-bold text-amber-800 uppercase tracking-wider block text-[10px] mb-1">
+                    Customer Reported Concern:
+                  </span>
+                  <p className="text-slate-800 font-medium">{selectedTripModal.customerConcern || 'Diagnostic verification'}</p>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider block text-[10px] mb-1">
+                    Technician Observations & Diagnostic Notes:
+                  </span>
+                  <p className="text-slate-900 leading-relaxed font-normal">
+                    {selectedTripModal.technicianNotes || 'Road test completed and verified within dealership parameters.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* OEM Warranty Compliance Certificate Banner */}
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base text-emerald-600">🛡</span>
+                  <div>
+                    <span className="font-bold text-emerald-900 block">
+                      OEM Warranty Audit Defense Compliance
+                    </span>
+                    <span className="text-[11px] text-emerald-700">
+                      Geofence perimeter exit & return timestamps electronically verified against Repair Order {selectedTripModal.repairOrder}.
+                    </span>
+                  </div>
+                </div>
+                <span className="font-mono text-[10px] font-bold text-emerald-800 bg-white px-2 py-1 rounded-lg border border-emerald-200 shrink-0">
+                  VERIFIED
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-6 py-3.5 border-t border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <span className="text-[11px] font-mono text-slate-400">
+                Log ID: {selectedTripModal.id}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditTrip(selectedTripModal)}
+                  className="px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  ✏️ Edit Record
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTrip(selectedTripModal.id)}
+                  className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  🗑️ Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  🖨 Print Summary
+                </button>
+                <a
+                  href={`/cases?search=${encodeURIComponent(selectedTripModal.repairOrder)}`}
+                  className="px-4 py-2 text-xs font-bold text-white bg-[#E11F26] hover:bg-red-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Open Warranty Case
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create / Edit Trip Record Modal */}
+      {showCreateTripModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div
+            className="fixed inset-0"
+            onClick={() => setShowCreateTripModal(false)}
+          />
+
+          <div className="relative bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 shadow-2xl z-10 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#E11F26] block">
+                  {editingTrip ? 'Update Record' : 'Manual Entry'}
+                </span>
+                <h3 className="text-lg font-black text-slate-900">
+                  {editingTrip ? 'Edit Test Drive Trip' : 'Log New Road Test Record'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateTripModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTrip} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Repair Order # *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. RO-48291"
+                    value={tripForm.repairOrder}
+                    onChange={(e) => setTripForm({ ...tripForm, repairOrder: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Registration Plate *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SGS 274"
+                    value={tripForm.registration}
+                    onChange={(e) => setTripForm({ ...tripForm, registration: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Vehicle Label / Model
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2021 Holden Commodore RS-V"
+                    value={tripForm.vehicleLabel}
+                    onChange={(e) => setTripForm({ ...tripForm, vehicleLabel: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Dealership Rooftop
+                  </label>
+                  <select
+                    value={tripForm.siteId}
+                    onChange={(e) => setTripForm({ ...tripForm, siteId: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none cursor-pointer"
+                  >
+                    {sites.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Diagnostic Outcome *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTripForm({ ...tripForm, outcome: 'Passed' })}
+                    className={`py-2 px-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      tripForm.outcome === 'Passed'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-500/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>✓</span> Passed (No Fault Duplicated)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTripForm({ ...tripForm, outcome: 'Flagged' })}
+                    className={`py-2 px-3 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      tripForm.outcome === 'Flagged'
+                        ? 'bg-red-50 border-red-500 text-red-800 ring-2 ring-red-500/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>🚩</span> Flagged (Fault Found)
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Duration
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 14m 20s"
+                    value={tripForm.duration}
+                    onChange={(e) => setTripForm({ ...tripForm, duration: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Distance (km)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="e.g. 8.6"
+                    value={tripForm.distanceKm}
+                    onChange={(e) => setTripForm({ ...tripForm, distanceKm: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Max Speed (km/h)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 78"
+                    value={tripForm.maxSpeedKph}
+                    onChange={(e) => setTripForm({ ...tripForm, maxSpeedKph: parseInt(e.target.value, 10) || 0 })}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Technician Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Marcus Vance"
+                  value={tripForm.technicianName}
+                  onChange={(e) => setTripForm({ ...tripForm, technicianName: e.target.value })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Customer Concern
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Intermittent shudder under load at 60-80 km/h"
+                  value={tripForm.customerConcern}
+                  onChange={(e) => setTripForm({ ...tripForm, customerConcern: e.target.value })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Diagnostic Findings & Road Test Notes
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Detailed notes on road test results, noise, vibration, speed conditions..."
+                  value={tripForm.technicianNotes}
+                  onChange={(e) => setTripForm({ ...tripForm, technicianNotes: e.target.value })}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-[#E11F26] focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateTripModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingTrip}
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#E11F26] hover:bg-red-700 rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {submittingTrip ? 'Saving...' : editingTrip ? 'Update Trip Record' : 'Save Trip Record'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -977,4 +977,121 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  // Test Drives & Client Vehicle Road Test Logs
+  async getTestDrives(params?: {
+    siteId?: string;
+    ro?: string;
+    registration?: string;
+    technicianId?: string;
+    outcome?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    items: Array<{
+      id: string;
+      repairOrder: string;
+      registration: string;
+      vin: string;
+      vehicleLabel: string;
+      make?: string;
+      model?: string;
+      year?: number;
+      variant?: string;
+      colour?: string;
+      odometerKm?: number;
+      customerName?: string;
+      customerConcern?: string;
+      technicianId: string;
+      technicianName: string;
+      siteId: string;
+      siteName: string;
+      startTime: string;
+      endTime?: string;
+      duration: string;
+      durationSeconds: number;
+      distanceKm: number;
+      maxSpeedKph: number;
+      avgSpeedKph?: number;
+      outcome: 'Passed' | 'Flagged' | 'Pending';
+      technicianNotes?: string;
+      geofenceExitAt?: string;
+      geofenceReturnAt?: string;
+      geofenceAutoVerified: boolean;
+      status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+      isLiveGps: boolean;
+      routePoints?: Array<{
+        latitude: number;
+        longitude: number;
+        speed: number;
+        timestamp?: number;
+        x: number;
+        y: number;
+      }>;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    kpis: {
+      totalDrives: number;
+      passedCount: number;
+      flaggedCount: number;
+      autoVerifiedRate: number;
+      avgMaxSpeed: number;
+    };
+  }> {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          query.set(key, String(val));
+        }
+      });
+    }
+    const res = await fetch(`${BASE_URL}/test-drives?${query.toString()}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getTestDriveById(id: string): Promise<any> {
+    const res = await fetch(`${BASE_URL}/test-drives/${id}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async createTestDrive(data: any): Promise<any> {
+    const res = await fetch(`${BASE_URL}/test-drives`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updateTestDrive(id: string, data: any): Promise<any> {
+    const res = await fetch(`${BASE_URL}/test-drives/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async deleteTestDrive(id: string): Promise<any> {
+    const res = await fetch(`${BASE_URL}/test-drives/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
 };
