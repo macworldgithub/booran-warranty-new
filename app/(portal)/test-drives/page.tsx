@@ -108,6 +108,18 @@ export default function TestDrivesPage() {
   const [editingRadius, setEditingRadius] = useState<number>(200);
   const [savingRadius, setSavingRadius] = useState<boolean>(false);
   const [applyToAllRooftops, setApplyToAllRooftops] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<string>('');
+  const [isAdmin, setIsAdmin] = useState<boolean>(true);
+
+  // Load current user profile & role
+  useEffect(() => {
+    api.getMe().then((user) => {
+      if (user) {
+        setUserRole(user.role || '');
+        setIsAdmin((user.role || '').toUpperCase() === 'ADMIN');
+      }
+    }).catch(() => {});
+  }, []);
 
   // Load sites
   useEffect(() => {
@@ -400,8 +412,9 @@ export default function TestDrivesPage() {
               </div>
             </div>
 
-            {/* Live Technician Presence Roster Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            {/* Live Technician Presence Roster Table (Hidden from Technician Portal) */}
+            {isAdmin && (
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
@@ -539,6 +552,7 @@ export default function TestDrivesPage() {
                 </table>
               </div>
             </div>
+          )}
 
             {/* Geofence Perimeter Transition History */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
