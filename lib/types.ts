@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'TECHNICIAN';
+export type UserRole = 'ADMIN' | 'CLERK' | 'TECHNICIAN';
 
 export type CaseStatus =
   | 'Draft'

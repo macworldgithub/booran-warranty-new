@@ -22,6 +22,14 @@ import {
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
 
+export function clearStoredSession(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('booran_user');
+  localStorage.removeItem('booran_user_profile');
+  localStorage.removeItem('booran_jwt');
+  localStorage.removeItem('booran_auth_token');
+}
+
 export function resolveMediaUrl(url?: string | null): string {
   if (!url) return '';
   if (
@@ -89,6 +97,13 @@ async function handleResponse<T>(res: Response): Promise<T> {
       }
     } catch {
       // ignore
+    }
+    if (res.status === 401 && typeof window !== 'undefined') {
+      clearStoredSession();
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
+      throw new Error('SESSION_EXPIRED');
     }
     throw new Error(errorMsg);
   }
@@ -227,6 +242,7 @@ export const api = {
       password?: string;
       role: UserRole;
       siteId?: string;
+      authorizedSiteIds?: string[];
     }): Promise<UserProfile> => {
       const res = await fetch(`${BASE_URL}/auth/users`, {
         method: 'POST',
@@ -242,6 +258,21 @@ export const api = {
       const res = await fetch(`${BASE_URL}/auth/users/${id}`, {
         method: 'DELETE',
         headers: getAuthHeader(),
+      });
+      return handleResponse(res);
+    },
+    updateUser: async (id: string, data: {
+      name?: string;
+      email?: string;
+      password?: string;
+      role?: UserRole;
+      siteId?: string;
+      authorizedSiteIds?: string[];
+    }): Promise<UserProfile> => {
+      const res = await fetch(`${BASE_URL}/auth/users/${id}`, {
+        method: 'PATCH',
+        headers: getAuthHeader(),
+        body: JSON.stringify(data),
       });
       return handleResponse(res);
     },
@@ -306,12 +337,24 @@ export const api = {
     password?: string;
     role: UserRole;
     siteId?: string;
+    authorizedSiteIds?: string[];
   }): Promise<UserProfile> {
     return this.auth.createUser(data);
   },
 
   async deleteUser(id: string): Promise<{ success: boolean; message: string }> {
     return this.auth.deleteUser(id);
+  },
+
+  async updateUser(id: string, data: {
+    name?: string;
+    email?: string;
+    password?: string;
+    role?: UserRole;
+    siteId?: string;
+    authorizedSiteIds?: string[];
+  }): Promise<UserProfile> {
+    return this.auth.updateUser(id, data);
   },
 
   async sendForgotPasswordOtp(
@@ -838,6 +881,15 @@ export const api = {
       headers: getAuthHeader(),
     });
     return handleResponse(res);
+  },
+
+  async downloadSubmissionPack(url: string): Promise<Blob> {
+    const res = await fetch(url, { headers: getAuthHeader() });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Download failed' }));
+      throw new Error(error.message || 'Download failed');
+    }
+    return res.blob();
   },
 
   // Dashboard Analytics

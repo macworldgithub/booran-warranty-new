@@ -32,6 +32,7 @@ export default function CasesPage() {
   const [userRole, setUserRole] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+  const [authorizedSiteIds, setAuthorizedSiteIds] = useState<string[]>([]);
   const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
   // Read URL params on mount (deep-link from dashboard or brand packs)
@@ -44,6 +45,7 @@ export default function CasesPage() {
           setUserRole(user.role || '');
           setUserId(user.id || '');
           setUserName(user.name || '');
+          setAuthorizedSiteIds(Array.isArray(user.authorizedSiteIds) ? user.authorizedSiteIds : []);
         } catch {
           // ignore
         }
@@ -288,11 +290,17 @@ export default function CasesPage() {
                 onChange={(e) => setSiteFilter(e.target.value)}
                 className="input-field text-xs w-52"
               >
-                <option value="ALL">All Rooftops</option>
-                <option value="site_cranbourne_byd">Cranbourne BYD</option>
-                <option value="site_dandenong_multi">Dandenong Multi-Franchise</option>
-                <option value="site_cheltenham_mg">Cheltenham MG & Chery</option>
-                <option value="site_berwick_toyota_ford">Berwick Commercials</option>
+                <option value="ALL">{userRole === 'CLERK' ? 'All Assigned Sites' : 'All Rooftops'}</option>
+                {[
+                  { id: 'site_cranbourne_byd', name: 'Cranbourne BYD' },
+                  { id: 'site_dandenong_multi', name: 'Dandenong Multi-Franchise' },
+                  { id: 'site_cheltenham_mg', name: 'Cheltenham MG & Chery' },
+                  { id: 'site_berwick_toyota_ford', name: 'Berwick Commercials' },
+                ]
+                  .filter((site) => userRole !== 'CLERK' || authorizedSiteIds.includes(site.id))
+                  .map((site) => (
+                    <option key={site.id} value={site.id}>{site.name}</option>
+                  ))}
               </select>
             </div>
 

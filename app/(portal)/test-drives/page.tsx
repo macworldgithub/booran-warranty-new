@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '../../../components/header';
 import { useToast } from '../../../components/toast';
 import { api } from '../../../lib/api';
@@ -94,10 +95,12 @@ const DEMO_ROAD_TEST_LOGS: RoadTestTrip[] = [
 
 export default function TestDrivesPage() {
   const { showToast } = useToast();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'geofence' | 'logs'>('geofence');
   const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>('site_cranbourne_byd');
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
+  const [sitesReady, setSitesReady] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [roster, setRoster] = useState<TechnicianPresence[]>([]);
   const [events, setEvents] = useState<GeofenceEvent[]>([]);
@@ -109,7 +112,10 @@ export default function TestDrivesPage() {
   const [savingRadius, setSavingRadius] = useState<boolean>(false);
   const [applyToAllRooftops, setApplyToAllRooftops] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<string>('');
-  const [isAdmin, setIsAdmin] = useState<boolean>(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [authorizedSiteIds, setAuthorizedSiteIds] = useState<string[]>([]);
+  const isClerk = userRole.toUpperCase() === 'CLERK';
+  const isTechnician = userRole.toUpperCase() === 'TECHNICIAN';
 
   // Client Vehicle Test Drive Logs State (MongoDB backed)
   const [testDriveLogs, setTestDriveLogs] = useState<any[]>([]);
@@ -164,7 +170,7 @@ export default function TestDrivesPage() {
       maxSpeedKph: 68,
       outcome: 'Passed',
       technicianNotes: '',
-      siteId: selectedSiteId || sites[0]?.id || 'site_cranbourne_byd',
+      siteId: selectedSiteId && selectedSiteId !== 'all' ? selectedSiteId : sites[0]?.id || '',
     });
     setShowCreateTripModal(true);
   };
@@ -182,7 +188,7 @@ export default function TestDrivesPage() {
       maxSpeedKph: trip.maxSpeedKph ?? 65,
       outcome: trip.outcome || 'Passed',
       technicianNotes: trip.technicianNotes || '',
-      siteId: trip.siteId || selectedSiteId || 'site_cranbourne_byd',
+      siteId: trip.siteId || (selectedSiteId !== 'all' ? selectedSiteId : sites[0]?.id) || '',
     });
     setShowCreateTripModal(true);
   };
@@ -256,31 +262,65 @@ export default function TestDrivesPage() {
     }
   };
 
-  // Load current user profile & role
+  // Load current user profile, assigned rooftops, and geofence sites
   useEffect(() => {
-    api.getMe().then((user) => {
-      if (user) {
-        setUserRole(user.role || '');
-        setIsAdmin((user.role || '').toUpperCase() === 'ADMIN');
-      }
-    }).catch(() => {});
-  }, []);
-
-  // Load sites
-  useEffect(() => {
+    let cancelled = false;
     async function initSites() {
       try {
-        const siteList = await api.getSites();
-        setSites(siteList);
-        if (siteList.length > 0 && !selectedSiteId) {
-          setSelectedSiteId(siteList[0].id);
+        const [user, siteList] = await Promise.all([
+          api.getMe().catch(() => null),
+          api.getSites(),
+        ]);
+        if (cancelled) return;
+
+        const storedUser = (() => {
+          try {
+            const raw = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+            return raw ? JSON.parse(raw) : {};
+          } catch {
+            return {};
+          }
+        })();
+        const role = String(user?.role || storedUser.role || '').toUpperCase();
+        if (role === 'TECHNICIAN') {
+          router.replace('/cases');
+          return;
+        }
+
+        setUserRole(role);
+        setIsAdmin(role === 'ADMIN');
+        const assigned: string[] = Array.isArray(user?.authorizedSiteIds)
+          ? user.authorizedSiteIds
+          : Array.isArray(storedUser.authorizedSiteIds)
+            ? storedUser.authorizedSiteIds
+            : user?.defaultSiteId || storedUser.defaultSiteId
+              ? [user?.defaultSiteId || storedUser.defaultSiteId]
+              : [];
+        setAuthorizedSiteIds(assigned);
+
+        let visibleSites = siteList || [];
+        if (role === 'CLERK') {
+          visibleSites = visibleSites.filter((site) => assigned.includes(site.id));
+        }
+        setSites(visibleSites);
+        if (role === 'CLERK') {
+          setSelectedSiteId(visibleSites.length === 1 ? visibleSites[0].id : 'all');
+        } else if (visibleSites.length > 0) {
+          setSelectedSiteId((current) =>
+            visibleSites.some((site) => site.id === current) ? current : visibleSites[0].id
+          );
         }
       } catch (err) {
         console.error('Failed to load sites:', err);
+      } finally {
+        if (!cancelled) setSitesReady(true);
       }
     }
     initSites();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const loadGeofenceData = useCallback(async (siteId: string) => {
     try {
@@ -351,6 +391,10 @@ export default function TestDrivesPage() {
   }, []);
 
   const handleSaveRadius = async () => {
+    if (!isAdmin) {
+      showToast('Only Administrators are authorized to adjust rooftop perimeter radius', 'error');
+      return;
+    }
     if (!selectedSiteId) return;
     setSavingRadius(true);
     try {
@@ -444,6 +488,11 @@ export default function TestDrivesPage() {
               onChange={(e) => setSelectedSiteId(e.target.value)}
               className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E11F26]"
             >
+              {sites.length > 1 && (
+                <option value="all">
+                  {isClerk ? 'All Assigned Rooftops' : 'All Dealership Rooftops'} ({sites.length})
+                </option>
+              )}
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.roPrefix})
@@ -451,7 +500,11 @@ export default function TestDrivesPage() {
               ))}
             </select>
 
-            {activeSite?.latitude && activeSite?.longitude ? (
+            {selectedSiteId === 'all' ? (
+              <span className="text-[11px] font-mono bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg">
+                📍 {isClerk ? 'Assigned Dealership Rooftops' : 'All Rooftops'} • {sites.length} Locations Monitored
+              </span>
+            ) : activeSite?.latitude && activeSite?.longitude ? (
               <span className="text-[11px] font-mono bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg">
                 📍 {activeSite.latitude.toFixed(4)}, {activeSite.longitude.toFixed(4)} • {activeSite.geofenceRadiusMeters ?? 200}m
               </span>
@@ -555,20 +608,27 @@ export default function TestDrivesPage() {
 
               <div
                 onClick={() => {
+                  if (!isAdmin) return;
                   setEditingRadius(activeSite?.geofenceRadiusMeters ?? 200);
                   setShowRadiusModal(true);
                 }}
-                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-[#E11F26] hover:shadow-md transition-all cursor-pointer group"
-                title="Click to adjust rooftop perimeter radius"
+                className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-xs transition-all ${
+                  isAdmin
+                    ? 'hover:border-[#E11F26] hover:shadow-md cursor-pointer group'
+                    : 'cursor-default'
+                }`}
+                title={isAdmin ? 'Click to adjust rooftop perimeter radius' : 'Dealership rooftop perimeter boundary (Admin configured)'}
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Perimeter Radius
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-[#E11F26] opacity-0 group-hover:opacity-100 transition-opacity">
-                      Adjust ✎
-                    </span>
+                    {isAdmin && (
+                      <span className="text-[11px] font-bold text-[#E11F26] opacity-0 group-hover:opacity-100 transition-opacity">
+                        Adjust ✎
+                      </span>
+                    )}
                     <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                       🛡
                     </div>
@@ -576,19 +636,25 @@ export default function TestDrivesPage() {
                 </div>
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-black text-slate-900">
-                    {activeSite?.geofenceRadiusMeters ?? 200}
+                    {selectedSiteId === 'all' ? 'Multi-Site' : (activeSite?.geofenceRadiusMeters ?? 200)}
                   </span>
-                  <span className="text-xs font-semibold text-slate-500">meters boundary</span>
+                  <span className="text-xs font-semibold text-slate-500">
+                    {selectedSiteId === 'all' ? 'geofenced boundaries' : 'meters boundary'}
+                  </span>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
-                  <span>All Admins Authorized • All Rooftops</span>
-                  <span className="text-[#E11F26] font-semibold underline">Adjust</span>
+                  <span>{isClerk ? 'Assigned Rooftops' : 'All Dealership Rooftops'}</span>
+                  {isAdmin ? (
+                    <span className="text-[#E11F26] font-semibold underline">Adjust</span>
+                  ) : (
+                    <span className="text-slate-400 font-medium">Admin Controlled</span>
+                  )}
                 </p>
               </div>
             </div>
 
-            {/* Live Technician Presence Roster Table (Hidden from Technician Portal) */}
-            {isAdmin && (
+            {/* Live Technician Presence Roster Table (Available to Admin and Warranty Clerks) */}
+            {(isAdmin || isClerk) && (
               <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div>
@@ -596,7 +662,7 @@ export default function TestDrivesPage() {
                     Live Dealership Rooftop Staff Roster
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Real-time presence based on mobile telemetry pings relative to {activeSite?.name}
+                    Real-time presence based on mobile telemetry pings relative to {selectedSiteId === 'all' ? (isClerk ? 'assigned dealership rooftops' : 'all dealership rooftops') : (activeSite?.name || 'Dealership Rooftop')}
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -1118,7 +1184,7 @@ export default function TestDrivesPage() {
       </div>
 
       {/* Geofence Radius Adjustment Modal (All Admins Authority) */}
-      {showRadiusModal && (
+      {showRadiusModal && isAdmin && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fadeIn"
           onClick={() => setShowRadiusModal(false)}

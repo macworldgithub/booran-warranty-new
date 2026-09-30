@@ -389,7 +389,7 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
                 Select Workspace Role
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleRoleChange('ADMIN')}
@@ -408,6 +408,26 @@ export default function LoginPage() {
                     <span className="font-bold text-xs text-slate-900">Warranty Admin</span>
                   </div>
                   <p className="text-[11px] text-slate-700">Full audit, packs, sites & review</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('CLERK')}
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                    selectedRole === 'CLERK'
+                      ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        selectedRole === 'CLERK' ? 'bg-[#E11F26]' : 'bg-slate-300'
+                      }`}
+                    />
+                    <span className="font-bold text-xs text-slate-900">Warranty Clerk</span>
+                  </div>
+                  <p className="text-[11px] text-slate-700">Assigned-site claim review</p>
                 </button>
 
                 <button

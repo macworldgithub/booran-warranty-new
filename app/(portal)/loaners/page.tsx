@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import { api } from '@/lib/api';
 import { LoanAgreement, LoanAgreementKpis } from '@/lib/types';
 
-const ROOFTOPS = [
+type RooftopOption = { label: string; siteId: string; fullName: string };
+
+const FALLBACK_ROOFTOPS: RooftopOption[] = [
   { label: 'All Rooftops', siteId: 'all', fullName: 'All Rooftops & Dealerships' },
   { label: 'Cranbourne', siteId: 'site_cranbourne_byd', fullName: 'Booran BYD Cranbourne' },
   { label: 'Dandenong', siteId: 'site_dandenong_multi', fullName: 'Booran Dandenong Multi-Franchise' },
-  { label: 'Berwick', siteId: 'site_berwick_nissan', fullName: 'Booran Nissan Berwick' },
+  { label: 'Berwick', siteId: 'site_berwick_toyota_ford', fullName: 'Booran Toyota / Ford Berwick' },
   { label: 'Cheltenham', siteId: 'site_cheltenham_mg', fullName: 'Booran MG & Chery Cheltenham' },
 ];
 
@@ -83,10 +86,14 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
 }
 
 export default function LoanersPage() {
+  const router = useRouter();
   const [selectedSiteId, setSelectedSiteId] = useState('all');
-  const [userRole, setUserRole] = useState<string>('ADMIN');
+  const [userRole, setUserRole] = useState<string>('');
+  const [sessionReady, setSessionReady] = useState(false);
+  const [rooftops, setRooftops] = useState<RooftopOption[]>(FALLBACK_ROOFTOPS);
   const [technicianSiteId, setTechnicianSiteId] = useState<string>('');
   const [technicianSiteName, setTechnicianSiteName] = useState<string>('');
+  const [authorizedSiteIds, setAuthorizedSiteIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'ACTIVE' | 'ACTIVE_LOAN' | 'ACTIVE_TEST_DRIVE' | 'DUE_SOON' | 'OVERDUE'>('ALL');
   const [purposeFilter, setPurposeFilter] = useState<'ALL' | 'SERVICE_LOANER' | 'TEST_DRIVE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,31 +110,86 @@ export default function LoanersPage() {
   });
 
   const isTechnician = userRole?.toUpperCase() === 'TECHNICIAN';
+  const isClerk = userRole?.toUpperCase() === 'CLERK';
+  const visibleRooftops = rooftops;
 
-  // Load user session to restrict technician to assigned rooftop
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
-      if (userStr) {
-        try {
-          const u = JSON.parse(userStr);
-          if (u.role) setUserRole(u.role);
-          const sId = u.defaultSiteId || u.siteId;
-          if (sId) {
-            setTechnicianSiteId(sId);
-            const found = ROOFTOPS.find((r) => r.siteId === sId);
-            setTechnicianSiteName(found?.label || sId);
-            if (u.role?.toUpperCase() === 'TECHNICIAN') {
-              setSelectedSiteId(sId);
-              setIssueSiteId(sId);
-            }
+    let cancelled = false;
+    async function loadSession() {
+      try {
+        const [me, siteList] = await Promise.all([
+          api.getMe().catch(() => null),
+          api.getSites().catch(() => []),
+        ]);
+        if (cancelled) return;
+
+        const stored = (() => {
+          try {
+            const raw = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+            return raw ? JSON.parse(raw) : {};
+          } catch {
+            return {};
           }
-        } catch {
-          // ignore
+        })();
+        const role = String(me?.role || stored.role || '').toUpperCase();
+        if (role === 'TECHNICIAN') {
+          router.replace('/cases');
+          return;
         }
+
+        const rawAssigned = Array.isArray(me?.authorizedSiteIds) && me.authorizedSiteIds.length > 0
+          ? me.authorizedSiteIds
+          : Array.isArray(stored.authorizedSiteIds) && stored.authorizedSiteIds.length > 0
+            ? stored.authorizedSiteIds
+            : (me?.defaultSiteId || stored.defaultSiteId)
+              ? [me?.defaultSiteId || stored.defaultSiteId]
+              : [];
+
+        const assignedSites: string[] = rawAssigned.length > 0
+          ? rawAssigned
+          : (siteList || []).map((s: any) => s.id);
+
+        const defaultSiteId = me?.defaultSiteId || stored.defaultSiteId || assignedSites[0] || 'site_cranbourne_byd';
+        setUserRole(role || me?.role || stored.role || '');
+        setAuthorizedSiteIds(assignedSites);
+        setTechnicianSiteId(defaultSiteId);
+
+        const scopedSites = (siteList && siteList.length > 0)
+          ? siteList.filter((site: any) => assignedSites.length === 0 || assignedSites.includes(site.id))
+          : FALLBACK_ROOFTOPS.filter((r) => r.siteId !== 'all');
+
+        const finalScopedSites = scopedSites.length > 0
+          ? scopedSites
+          : (siteList && siteList.length > 0 ? siteList : FALLBACK_ROOFTOPS.filter((r) => r.siteId !== 'all'));
+
+        const allLabel = role === 'CLERK' ? 'All Assigned Rooftops' : 'All Rooftops';
+        const allName = role === 'CLERK' ? 'Assigned Dealership Rooftops' : 'All Rooftops & Dealerships';
+        const nextRooftops: RooftopOption[] = [
+          { label: allLabel, siteId: 'all', fullName: allName },
+          ...finalScopedSites.map((site: any) => ({
+            label: (site.name || site.label || '').replace(/^Booran\s+/i, ''),
+            siteId: site.id || site.siteId,
+            fullName: site.fullName || site.name || `Booran ${site.label}`,
+          })),
+        ];
+        setRooftops(nextRooftops);
+        const assignedLabel = nextRooftops.find((r) => r.siteId === defaultSiteId)?.label || defaultSiteId;
+        setTechnicianSiteName(assignedLabel);
+
+        if (role === 'CLERK') {
+          setSelectedSiteId('all');
+          const firstSite = finalScopedSites[0] as any;
+          setIssueSiteId(assignedSites[0] || defaultSiteId || firstSite?.id || firstSite?.siteId || 'site_cranbourne_byd');
+        }
+      } finally {
+        if (!cancelled) setSessionReady(true);
       }
     }
-  }, []);
+    loadSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   // Modals & CRUD State
   const [previewAgreement, setPreviewAgreement] = useState<LoanAgreement | null>(null);
@@ -181,27 +243,31 @@ export default function LoanersPage() {
   const [submittingIssue, setSubmittingIssue] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (!sessionReady || isTechnician) return;
     try {
       setLoading(true);
-      const effectiveSite = isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId;
+      const effectiveSite = selectedSiteId;
       const siteParam = effectiveSite === 'all' ? undefined : effectiveSite;
       const [agList, kpiData] = await Promise.all([
         api.getLoanAgreements(siteParam),
         api.getLoanAgreementKpis(siteParam).catch(() => null),
       ]);
-      const list = agList || [];
+      let list = agList || [];
+      if (isClerk && authorizedSiteIds.length > 0) {
+        list = list.filter((agreement) => authorizedSiteIds.includes(agreement.siteId));
+      }
       setAgreements(list);
-      if (kpiData && typeof kpiData.totalCars === 'number') {
+      if (kpiData && typeof kpiData.totalCars === 'number' && !(isClerk && selectedSiteId === 'all')) {
         setKpis(kpiData);
       } else {
-        setKpis(computeKpis(list, effectiveSite));
+        setKpis(computeKpis(list, effectiveSite === 'all' ? 'all' : effectiveSite));
       }
     } catch (err: any) {
       console.error('Failed to load loan operations data:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedSiteId, isTechnician, technicianSiteId]);
+  }, [selectedSiteId, isTechnician, isClerk, authorizedSiteIds, sessionReady]);
 
   useEffect(() => {
     fetchData();
@@ -210,14 +276,16 @@ export default function LoanersPage() {
   // Keep KPI boxes synced when site filter changes
   useEffect(() => {
     if (agreements.length > 0) {
-      const effectiveSite = isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId;
-      setKpis(computeKpis(agreements, effectiveSite));
+      setKpis(computeKpis(agreements, selectedSiteId));
     }
-  }, [selectedSiteId, agreements, isTechnician, technicianSiteId]);
+  }, [selectedSiteId, agreements]);
 
   // Filtered agreements
   const filteredAgreements = agreements.filter((ag) => {
-    const effectiveSite = isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId;
+    const effectiveSite = selectedSiteId;
+    if (isClerk && authorizedSiteIds.length > 0 && !authorizedSiteIds.includes(ag.siteId)) {
+      return false;
+    }
     if (effectiveSite !== 'all' && ag.siteId !== effectiveSite) {
       return false;
     }
@@ -489,7 +557,7 @@ export default function LoanersPage() {
     }
 
     const effectiveIssueSite = isTechnician && technicianSiteId ? technicianSiteId : issueSiteId;
-    const siteObj = ROOFTOPS.find((r) => r.siteId === effectiveIssueSite) || ROOFTOPS[1];
+    const siteObj = rooftops.find((r) => r.siteId === effectiveIssueSite) || rooftops.find((r) => r.siteId !== 'all') || FALLBACK_ROOFTOPS[1];
     const hours = parseInt(issueDueHours, 10) || 24;
     const dueTime = new Date(Date.now() + hours * 3600000).toISOString();
 
@@ -572,16 +640,20 @@ export default function LoanersPage() {
     setIsIssueOpen(true);
   };
 
-  const activeRooftopLabel = ROOFTOPS.find(
+  const activeRooftopLabel = rooftops.find(
     (r) => r.siteId === (isTechnician && technicianSiteId ? technicianSiteId : selectedSiteId)
-  )?.label || technicianSiteName || 'Cranbourne';
+  )?.label || technicianSiteName || 'Assigned rooftops';
+  const assignedRooftopNames = rooftops.filter((r) => r.siteId !== 'all').map((r) => r.label).join(', ');
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <Header
+        portalRole={userRole}
         title="Loan Vehicle Operations"
         subtitle={
-          isTechnician
+          isClerk
+            ? `Warranty Clerk • Loan operations for assigned rooftops${assignedRooftopNames ? ` (${assignedRooftopNames})` : ''}`
+            : isTechnician
             ? `Booran Motor Group • Workshop Fleet (${activeRooftopLabel} Rooftop - Technician Scoped)`
             : "Booran Motor Group • Digital Customer Agreements & Electronic SOW Compliance"
         }
@@ -624,7 +696,7 @@ export default function LoanersPage() {
                   onChange={(e) => setSelectedSiteId(e.target.value)}
                   className="bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-xs focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden cursor-pointer"
                 >
-                  {ROOFTOPS.map((rt) => (
+                  {visibleRooftops.map((rt) => (
                     <option key={rt.siteId} value={rt.siteId}>
                       {rt.label}
                     </option>
@@ -636,9 +708,7 @@ export default function LoanersPage() {
                   <div className="bg-slate-900 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap border border-slate-700/80 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#D71920]" />
                     <span>
-                      {selectedSiteId === 'site_dandenong_multi'
-                        ? 'Booran Dandenong Multi-Franchise Dealership'
-                        : ROOFTOPS.find((r) => r.siteId === selectedSiteId)?.fullName || 'All Dealership Rooftops'}
+                      {rooftops.find((r) => r.siteId === selectedSiteId)?.fullName || (isClerk ? 'Assigned Dealership Rooftops' : 'All Dealership Rooftops')}
                     </span>
                   </div>
                 </div>
@@ -649,6 +719,40 @@ export default function LoanersPage() {
       />
 
       <div className="p-6 lg:p-8 space-y-6">
+        {/* Dealership Rooftop Control & Filter Bar */}
+        <div className="bg-white p-4 border border-slate-200/90 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🏢</span> Dealership Rooftop:
+            </span>
+            <select
+              value={selectedSiteId}
+              onChange={(e) => setSelectedSiteId(e.target.value)}
+              className="text-xs font-bold bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#D71920] cursor-pointer"
+            >
+              {visibleRooftops.map((rt) => (
+                <option key={rt.siteId} value={rt.siteId}>
+                  {rt.fullName || rt.label}
+                </option>
+              ))}
+            </select>
+
+            <span className="text-[11px] font-mono bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg">
+              {selectedSiteId === 'all'
+                ? `📍 ${isClerk ? 'Assigned Dealership Rooftops' : 'All Dealership Rooftops'} • ${visibleRooftops.filter((r) => r.siteId !== 'all').length} Locations Monitored`
+                : `📍 Rooftop: ${rooftops.find((r) => r.siteId === selectedSiteId)?.fullName || selectedSiteId}`
+              }
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>Active Filter:</span>
+            <span className="font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
+              {rooftops.find((r) => r.siteId === selectedSiteId)?.label || (isClerk ? 'All Assigned Rooftops' : 'All Rooftops')}
+            </span>
+          </div>
+        </div>
+
         {/* KPI Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {/* 1. Total Cars */}
@@ -828,7 +932,26 @@ export default function LoanersPage() {
             })}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            {/* Rooftop Quick Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                Rooftop:
+              </span>
+              <select
+                value={selectedSiteId}
+                onChange={(e) => setSelectedSiteId(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer py-1 pr-1"
+                aria-label="Dealership rooftop filter"
+              >
+                {visibleRooftops.map((rt) => (
+                  <option key={rt.siteId} value={rt.siteId}>
+                    {rt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <select
               value={purposeFilter}
               onChange={(e) => setPurposeFilter(e.target.value as typeof purposeFilter)}
@@ -2286,7 +2409,7 @@ export default function LoanersPage() {
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
                       <span className="font-bold text-slate-800">
-                        {ROOFTOPS.find((r) => r.siteId === (technicianSiteId || issueSiteId))?.fullName || activeRooftopLabel}
+                        {rooftops.find((r) => r.siteId === (technicianSiteId || issueSiteId))?.fullName || activeRooftopLabel}
                       </span>
                     </div>
                     <span className="px-2 py-0.5 rounded bg-slate-200 text-[11px] font-bold text-slate-600">
@@ -2299,7 +2422,7 @@ export default function LoanersPage() {
                     onChange={(e) => setIssueSiteId(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden bg-white"
                   >
-                    {ROOFTOPS.filter((r) => r.siteId !== 'all').map((r) => (
+                    {visibleRooftops.filter((r) => r.siteId !== 'all').map((r) => (
                       <option key={r.siteId} value={r.siteId}>
                         {r.fullName || `Booran ${r.label}`}
                       </option>

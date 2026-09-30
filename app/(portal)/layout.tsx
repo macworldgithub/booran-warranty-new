@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '../../components/sidebar';
 import { ToastProvider } from '../../components/toast';
 import { UserProfile } from '../../lib/types';
+import { clearStoredSession } from '../../lib/api';
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,8 +23,29 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         return;
       }
 
+      if (!token.startsWith('session_v1.')) {
+        clearStoredSession();
+        router.replace('/login');
+        return;
+      }
+
       try {
         const parsed = JSON.parse(userStr);
+        const role = String(parsed.role || '').toUpperCase();
+        if (role === 'CLERK') {
+          const allowedPrefixes = ['/dashboard', '/cases', '/loaners', '/test-drives'];
+          if (!allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+            router.replace('/dashboard');
+            return;
+          }
+        }
+        if (role === 'TECHNICIAN') {
+          const allowedPrefixes = ['/cases', '/brand-packs'];
+          if (!allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+            router.replace('/cases');
+            return;
+          }
+        }
         setUser(parsed);
       } catch (err) {
         router.replace('/login');
@@ -31,7 +54,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
       setLoading(false);
     }
-  }, [router]);
+  }, [pathname, router]);
 
   if (loading) {
     return (

@@ -1,39 +1,41 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import { NotificationBell } from './notification-bell';
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
-  portalRole?: 'ADMIN' | 'TECHNICIAN' | string;
+  portalRole?: 'ADMIN' | 'CLERK' | 'TECHNICIAN' | string;
+}
+
+function subscribeToSession(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+}
+
+function getStoredRole(): string {
+  const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
+  if (!userStr) return 'ADMIN';
+  try {
+    return JSON.parse(userStr).role || 'ADMIN';
+  } catch {
+    return 'ADMIN';
+  }
 }
 
 export function Header({ title, subtitle, action, portalRole }: HeaderProps) {
-  const [role, setRole] = useState<string>(portalRole || '');
-
-  useEffect(() => {
-    if (portalRole) {
-      setRole(portalRole);
-      return;
-    }
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
-      if (userStr) {
-        try {
-          const user = JSON.parse(userStr);
-          setRole(user.role || 'ADMIN');
-        } catch {
-          setRole('ADMIN');
-        }
-      } else {
-        setRole('ADMIN');
-      }
-    }
-  }, [portalRole]);
+  const storedRole = useSyncExternalStore(subscribeToSession, getStoredRole, () => '');
+  const role = portalRole || storedRole;
 
   const isAdmin = role.toUpperCase() === 'ADMIN';
+  const isClerk = role.toUpperCase() === 'CLERK';
+  const portalLabel = isAdmin
+    ? 'Admin Portal'
+    : isClerk
+      ? 'Warranty Clerk Portal'
+      : 'Technician Portal';
 
   return (
     <header className="px-6 lg:px-8 py-4 border-b border-slate-200 bg-white/95 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
@@ -49,15 +51,17 @@ export function Header({ title, subtitle, action, portalRole }: HeaderProps) {
                 className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black tracking-wider uppercase border shadow-xs ${
                   isAdmin
                     ? 'bg-slate-900 text-white border-slate-700'
+                    : isClerk
+                      ? 'bg-red-950 text-red-100 border-red-700'
                     : 'bg-blue-900 text-blue-100 border-blue-700'
                 }`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    isAdmin ? 'bg-[#E11F26] animate-pulse' : 'bg-cyan-400 animate-pulse'
+                    isAdmin || isClerk ? 'bg-[#E11F26] animate-pulse' : 'bg-cyan-400 animate-pulse'
                   }`}
                 />
-                {isAdmin ? 'Admin Portal' : 'Technician Portal'}
+                {portalLabel}
               </span>
             )}
           </div>

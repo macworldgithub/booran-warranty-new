@@ -19,10 +19,12 @@ interface NavItem {
   highlight?: boolean;
 }
 
-export function Sidebar({ userRole = 'ADMIN', userName = 'Marcus Vance', userEmail = 'admin@booran.com.au' }: SidebarProps) {
+export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', userEmail = 'admin@booran.com.au' }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const isAdmin = userRole === 'ADMIN';
+  const role = String(userRole || 'TECHNICIAN').toUpperCase();
+  const isAdmin = role === 'ADMIN';
+  const isClerk = role === 'CLERK';
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -136,15 +138,6 @@ export function Sidebar({ userRole = 'ADMIN', userName = 'Marcus Vance', userEma
       ),
     },
     {
-      label: 'Loan Operations',
-      href: '/loaners',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-        </svg>
-      ),
-    },
-    {
       label: 'Brand Rules Reference',
       href: '/brand-packs',
       icon: (
@@ -155,14 +148,19 @@ export function Sidebar({ userRole = 'ADMIN', userName = 'Marcus Vance', userEma
     },
   ];
 
-  const navItems = isAdmin ? adminNavItems : techNavItems;
+  const clerkNavItems = adminNavItems.filter((item) =>
+    ['/dashboard', '/cases', '/loaners', '/test-drives'].includes(item.href),
+  );
+  const navItems = isAdmin ? adminNavItems : isClerk ? clerkNavItems : techNavItems;
+  const homeHref = isAdmin || isClerk ? '/dashboard' : '/cases';
+  const roleLabel = isAdmin ? 'ADMIN' : isClerk ? 'CLERK' : 'TECH';
 
   return (
     <aside className="w-64 bg-[#0B0F17] border-r border-slate-800/80 flex flex-col justify-between shrink-0 min-h-screen sticky top-0 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-all">
       <div>
         {/* Brand Logo Header */}
         <div className="p-4 border-b border-slate-800/80 bg-gradient-to-b from-[#0F1624] to-[#0B0F17]">
-          <Link href={isAdmin ? "/dashboard" : "/cases"} className="block group">
+          <Link href={homeHref} className="block group">
             <div className="flex items-center justify-between gap-2">
               <img
                 src="/booran-motors-official.png"
@@ -173,7 +171,7 @@ export function Sidebar({ userRole = 'ADMIN', userName = 'Marcus Vance', userEma
                 className="h-8 max-w-[155px] object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] group-hover:opacity-95 transition-opacity"
               />
               <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-red-950/70 text-red-400 border border-red-800/60 font-bold shrink-0">
-                {isAdmin ? 'ADMIN' : 'TECH'}
+                {roleLabel}
               </span>
             </div>
             <div className="mt-2.5 flex items-center justify-between text-[10px] font-mono tracking-wider">

@@ -25,8 +25,8 @@ export default function UsersPage() {
       if (userStr) {
         try {
           const parsed = JSON.parse(userStr);
-          if (parsed.role === 'TECHNICIAN') {
-            router.replace('/cases');
+          if (parsed.role !== 'ADMIN') {
+            router.replace(parsed.role === 'CLERK' ? '/dashboard' : '/cases');
             return;
           }
         } catch {}
@@ -40,12 +40,14 @@ export default function UsersPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: 'Booran2026!',
     role: 'ADMIN' as UserRole,
     siteId: 'site_cranbourne_byd',
+    authorizedSiteIds: ['site_cranbourne_byd'] as string[],
   });
 
   // Delete User Modal State
@@ -69,7 +71,9 @@ export default function UsersPage() {
         }));
       }
     } catch (err) {
-      console.error('Failed to load user directory data:', err);
+      if (!(err instanceof Error && err.message === 'SESSION_EXPIRED')) {
+        console.error('Failed to load user directory data:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,7 +118,51 @@ export default function UsersPage() {
     return counts;
   }, [users]);
 
-  const handleCreateUser = async (e: React.FormEvent) => {
+  const openCreateModal = () => {
+    const firstSiteId = sites[0]?.id || 'site_cranbourne_byd';
+    setEditingUser(null);
+    setFormData({
+      name: '',
+      email: '',
+      password: 'Booran2026!',
+      role: 'ADMIN',
+      siteId: firstSiteId,
+      authorizedSiteIds: [firstSiteId],
+    });
+    setFormError(null);
+    setFormSuccess(null);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (user: UserProfile) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '',
+      role: user.role,
+      siteId: user.defaultSiteId,
+      authorizedSiteIds: user.authorizedSiteIds?.length ? user.authorizedSiteIds : [user.defaultSiteId],
+    });
+    setFormError(null);
+    setFormSuccess(null);
+    setShowAddModal(true);
+  };
+
+  const toggleAssignedSite = (siteId: string) => {
+    setFormData((current) => {
+      const selected = current.authorizedSiteIds.includes(siteId)
+        ? current.authorizedSiteIds.filter((id) => id !== siteId)
+        : [...current.authorizedSiteIds, siteId];
+      return {
+        ...current,
+        authorizedSiteIds: selected,
+        siteId: selected.includes(current.siteId) ? current.siteId : (selected[0] || ''),
+      };
+    });
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
@@ -127,23 +175,37 @@ export default function UsersPage() {
       setFormError('Please enter a valid work email address.');
       return;
     }
-    if (!formData.password || formData.password.length < 6) {
+    if (!editingUser && (!formData.password || formData.password.length < 6)) {
       setFormError('Password must be at least 6 characters.');
+      return;
+    }
+    if (editingUser && formData.password && formData.password.length < 6) {
+      setFormError('A replacement password must be at least 6 characters.');
+      return;
+    }
+    if (formData.role === 'CLERK' && formData.authorizedSiteIds.length === 0) {
+      setFormError('Select at least one dealership site for this Warranty Clerk.');
       return;
     }
 
     setFormSubmitting(true);
     try {
-      const newUser = await api.createUser({
+      const payload = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        password: formData.password.trim(),
+        password: formData.password.trim() || undefined,
         role: formData.role,
         siteId: formData.siteId,
-      });
+        authorizedSiteIds: formData.role === 'CLERK' ? formData.authorizedSiteIds : [formData.siteId],
+      };
+      const savedUser = editingUser
+        ? await api.updateUser(editingUser.id, payload)
+        : await api.createUser(payload);
 
-      setFormSuccess(`User account for ${newUser.name} created successfully!`);
-      setUsers((prev) => [newUser, ...prev]);
+      setFormSuccess(`User account for ${savedUser.name} ${editingUser ? 'updated' : 'created'} successfully!`);
+      setUsers((prev) => editingUser
+        ? prev.map((user) => user.id === savedUser.id ? savedUser : user)
+        : [savedUser, ...prev]);
 
       // Reset form
       setFormData({
@@ -152,14 +214,16 @@ export default function UsersPage() {
         password: 'Booran2026!',
         role: 'ADMIN',
         siteId: sites.length > 0 ? sites[0].id : 'site_cranbourne_byd',
+        authorizedSiteIds: [sites.length > 0 ? sites[0].id : 'site_cranbourne_byd'],
       });
 
       setTimeout(() => {
         setShowAddModal(false);
+        setEditingUser(null);
         setFormSuccess(null);
       }, 900);
     } catch (err: any) {
-      setFormError(err.message || 'Failed to create user account. Please try again.');
+      setFormError(err.message || `Failed to ${editingUser ? 'update' : 'create'} user account. Please try again.`);
     } finally {
       setFormSubmitting(false);
     }
@@ -268,6 +332,7 @@ export default function UsersPage() {
               {[
                 { id: 'ALL', label: 'All Roles' },
                 { id: 'ADMIN', label: 'Warranty Admins' },
+                { id: 'CLERK', label: 'Warranty Clerks' },
                 { id: 'TECHNICIAN', label: 'Workshop Techs' },
               ].map((rf) => {
                 const count = roleCounts[rf.id] || 0;
@@ -297,11 +362,7 @@ export default function UsersPage() {
 
             {/* Add User Button */}
             <button
-              onClick={() => {
-                setShowAddModal(true);
-                setFormError(null);
-                setFormSuccess(null);
-              }}
+              onClick={openCreateModal}
               className="px-4 py-2 bg-[#E11F26] hover:bg-[#c9181e] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer shrink-0"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,7 +400,7 @@ export default function UsersPage() {
                 <th className="py-3.5 px-4">User</th>
                 <th className="py-3.5 px-4">Email</th>
                 <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Default Site</th>
+                <th className="py-3.5 px-4">Assigned Sites</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -403,11 +464,15 @@ export default function UsersPage() {
                             u.role === 'ADMIN' ? 'bg-[#E11F26]' : 'bg-slate-400'
                           }`}
                         />
-                        {u.role === 'ADMIN' ? 'Warranty Admin' : 'Workshop Tech'}
+                        {u.role === 'ADMIN' ? 'Warranty Admin' : u.role === 'CLERK' ? 'Warranty Clerk' : 'Workshop Tech'}
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-slate-600 font-mono">
-                      {sites.find((s) => s.id === u.defaultSiteId)?.name || u.defaultSiteId || 'Standard Site'}
+                      {u.role === 'ADMIN'
+                        ? 'All Sites'
+                        : (u.authorizedSiteIds || [u.defaultSiteId])
+                            .map((siteId) => sites.find((s) => s.id === siteId)?.name || siteId)
+                            .join(', ')}
                     </td>
                     <td className="py-3.5 px-4">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[11px]">
@@ -420,25 +485,26 @@ export default function UsersPage() {
                           Root Admin
                         </span>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeleteTarget(u);
-                            setDeleteError(null);
-                          }}
-                          className="px-2.5 py-1 text-slate-500 hover:text-[#E11F26] hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1"
-                          title={`Delete account for ${u.name}`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                          <span>Delete</span>
-                        </button>
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(u)}
+                            className="px-2.5 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteTarget(u);
+                              setDeleteError(null);
+                            }}
+                            className="px-2.5 py-1 text-slate-500 hover:text-[#E11F26] hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                            title={`Delete account for ${u.name}`}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -464,16 +530,20 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Add User Modal */}
+      {/* Add / Edit User Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-150 my-8">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div>
-                <h2 className="text-lg font-black text-slate-900">Provision New User Account</h2>
+                <h2 className="text-lg font-black text-slate-900">
+                  {editingUser ? 'Edit User Access' : 'Provision New User Account'}
+                </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Create an Admin or Workshop Technician with instant portal & mobile access.
+                  {editingUser
+                    ? 'Update the role, primary site, or assigned Clerk sites.'
+                    : 'Create an Admin, Warranty Clerk, or Workshop Technician account.'}
                 </p>
               </div>
               <button
@@ -504,8 +574,7 @@ export default function UsersPage() {
               </div>
             )}
 
-            {/* Creation Form */}
-            <form onSubmit={handleCreateUser} className="space-y-4">
+            <form onSubmit={handleSaveUser} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Full Name <span className="text-[#E11F26]">*</span>
@@ -539,7 +608,7 @@ export default function UsersPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Assigned Workspace Role <span className="text-[#E11F26]">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, role: 'ADMIN' })}
@@ -558,6 +627,30 @@ export default function UsersPage() {
                       <span className="font-bold text-xs text-slate-900">Warranty Admin</span>
                     </div>
                     <p className="text-[11px] text-slate-500">Full audit, packs, sites & user access</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      role: 'CLERK',
+                      authorizedSiteIds: formData.authorizedSiteIds.length
+                        ? formData.authorizedSiteIds
+                        : [formData.siteId],
+                    })}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      formData.role === 'CLERK'
+                        ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${
+                        formData.role === 'CLERK' ? 'bg-[#E11F26]' : 'bg-slate-300'
+                      }`} />
+                      <span className="font-bold text-xs text-slate-900">Warranty Clerk</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Assigned-site claim review</p>
                   </button>
 
                   <button
@@ -582,44 +675,79 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              {/* Dealership Site */}
+              {/* Dealership Site Access */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Primary Dealership Rooftop
+                  {formData.role === 'CLERK' ? 'Assigned Dealership Sites' : 'Primary Dealership Rooftop'}
                 </label>
-                <select
-                  value={formData.siteId}
-                  onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
-                  className="input-field text-xs w-full bg-white"
-                >
-                  {sites.length > 0 ? (
-                    sites.map((site) => (
+                {formData.role === 'CLERK' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {sites.map((site) => {
+                      const selected = formData.authorizedSiteIds.includes(site.id);
+                      return (
+                        <label
+                          key={site.id}
+                          className={`flex items-center gap-2 rounded-xl border p-3 cursor-pointer ${
+                            selected ? 'border-[#E11F26] bg-red-50' : 'border-slate-200 bg-white'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleAssignedSite(site.id)}
+                            className="accent-[#E11F26]"
+                          />
+                          <span className="text-xs font-semibold text-slate-800">{site.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <select
+                    value={formData.siteId}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      siteId: e.target.value,
+                      authorizedSiteIds: [e.target.value],
+                    })}
+                    className="input-field text-xs w-full bg-white"
+                  >
+                    {sites.map((site) => (
                       <option key={site.id} value={site.id}>
                         {site.name} ({site.location || site.id})
                       </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="site_cranbourne_byd">Booran Cranbourne (BYD)</option>
-                      <option value="site_dandenong_multi">Booran Dandenong Multi-Franchise</option>
-                      <option value="site_cheltenham_mg">Booran Cheltenham (MG)</option>
-                      <option value="site_berwick_toyota_ford">Booran Berwick (Toyota / Ford)</option>
-                    </>
-                  )}
-                </select>
+                    ))}
+                  </select>
+                )}
+                {formData.role === 'CLERK' && formData.authorizedSiteIds.length > 0 && (
+                  <div className="mt-2">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Default Site</label>
+                    <select
+                      value={formData.siteId}
+                      onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
+                      className="input-field text-xs w-full bg-white"
+                    >
+                      {formData.authorizedSiteIds.map((siteId) => (
+                        <option key={siteId} value={siteId}>
+                          {sites.find((site) => site.id === siteId)?.name || siteId}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Initial Password */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold text-slate-700">
-                    Initial Password <span className="text-[#E11F26]">*</span>
+                    {editingUser ? 'New Password (optional)' : 'Initial Password'} {!editingUser && <span className="text-[#E11F26]">*</span>}
                   </label>
                   <span className="text-[10px] text-slate-400">User can reset later via OTP</span>
                 </div>
                 <input
                   type="text"
-                  required
+                  required={!editingUser}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="input-field text-xs w-full font-mono"
@@ -646,10 +774,10 @@ export default function UsersPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
-                      <span>Creating Account...</span>
+                      <span>{editingUser ? 'Saving Changes...' : 'Creating Account...'}</span>
                     </>
                   ) : (
-                    <span>Create User Account</span>
+                    <span>{editingUser ? 'Save Changes' : 'Create User Account'}</span>
                   )}
                 </button>
               </div>

@@ -448,6 +448,26 @@ export default function CaseDetailPage() {
     }
   }
 
+  async function handleDownloadPack(url: string | undefined, fileName: string) {
+    if (!url) {
+      showToast('Download is not available for this package.', 'error');
+      return;
+    }
+    try {
+      const blob = await api.downloadSubmissionPack(url);
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err: any) {
+      showToast(err.message || 'Download failed', 'error');
+    }
+  }
+
   async function handleSubmitFromWorkshop() {
     const flags = caseData?.flagHistory || caseData?.flags || [];
     const unresolved = flags.filter((f) => !f.resolvedAt);
@@ -1662,22 +1682,20 @@ export default function CaseDetailPage() {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <p className="text-slate-900 font-bold text-sm">Download Ready Package</p>
               <div className="flex flex-wrap gap-2 pt-1">
-                <a
-                  href={packData.zipDownloadUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPack(packData.zipDownloadUrl, packData.zipFileName || `${caseId}-submission-pack.zip`)}
                   className="btn-primary text-xs py-2 px-4 shadow-sm"
                 >
                   Download {packData.zipFileName}
-                </a>
-                <a
-                  href={packData.pdfSummaryDownloadUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPack(packData.pdfSummaryDownloadUrl, `${caseId}-case-summary.pdf`)}
                   className="btn-ghost text-xs py-2 px-4 border-slate-300 text-slate-700 hover:border-slate-400"
                 >
                   Download One-Page Case Summary PDF
-                </a>
+                </button>
               </div>
             </div>
 
