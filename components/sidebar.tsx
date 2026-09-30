@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { UserRole } from '@/lib/types';
+import { ALL_ASSIGNED_SITES, useClerkSite } from './clerk-site-context';
 
 interface SidebarProps {
   userRole?: UserRole;
@@ -25,6 +26,7 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
   const role = String(userRole || 'TECHNICIAN').toUpperCase();
   const isAdmin = role === 'ADMIN';
   const isClerk = role === 'CLERK';
+  const { activeSiteId, assignedSites, setActiveSiteId } = useClerkSite();
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -189,6 +191,26 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
           </div>
           <span className="text-[10px] font-mono text-slate-400 uppercase">5 Sites</span>
         </div>
+
+        {isClerk && assignedSites.length > 0 && (
+          <div className="mx-3 mt-3 rounded-xl border border-slate-700 bg-slate-900 p-3">
+            <label htmlFor="clerk-active-rooftop" className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Active rooftop
+            </label>
+            <select
+              id="clerk-active-rooftop"
+              value={activeSiteId}
+              onChange={(event) => setActiveSiteId(event.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-[#0B0F17] px-2.5 py-2 text-xs font-semibold text-white outline-none focus:border-[#E11F26]"
+              aria-label="Switch active rooftop"
+            >
+              {assignedSites.length > 1 && <option value={ALL_ASSIGNED_SITES}>All Assigned Rooftops</option>}
+              {assignedSites.map((site) => (
+                <option key={site.id} value={site.id}>{site.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Navigation Links */}
         <nav className="p-3 space-y-1.5">

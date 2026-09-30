@@ -48,6 +48,10 @@ const REASON_TIPS: Record<string, string> = {
   INCORRECT_MEDIA_TYPE: 'Ensure container is an MP4 video or JPEG image as specified by OEM rules.',
 };
 
+function isDemoEvidenceUrl(url?: string | null) {
+  return Boolean(url && url.includes('images.unsplash.com'));
+}
+
 function EvidenceThumbnail({
   item,
   caseVin,
@@ -58,7 +62,8 @@ function EvidenceThumbnail({
   onExpand: (url: string, itemObj?: any) => void;
 }) {
   const [hasError, setHasError] = useState(false);
-  const resolvedUrl = resolveMediaUrl(item.storageUrl);
+  const isDemoUrl = isDemoEvidenceUrl(item.storageUrl);
+  const resolvedUrl = isDemoUrl ? '' : resolveMediaUrl(item.storageUrl);
   const isVideo =
     item.mediaType === 'video' ||
     (item.mimeType && item.mimeType.startsWith('video/')) ||
@@ -72,7 +77,7 @@ function EvidenceThumbnail({
   const vinText = item.ocrExtractedText || caseVin || '';
 
   // If local phone file path or image error on VIN, render stylized VIN Barcode plate
-  if (isVinRule && (isLocalFileUri || hasError || !item.storageUrl)) {
+  if (isVinRule && (isDemoUrl || isLocalFileUri || hasError || !item.storageUrl)) {
     return (
       <div
         onClick={() => onExpand(resolvedUrl || item.storageUrl || 'vin_digital', item)}
@@ -156,7 +161,7 @@ function EvidenceThumbnail({
   }
 
   // If broken generic image or file URI
-  if (hasError || isLocalFileUri || !item.storageUrl) {
+  if (hasError || isDemoUrl || isLocalFileUri || !item.storageUrl) {
     return (
       <div
         onClick={() => onExpand(resolvedUrl || item.storageUrl || '', item)}

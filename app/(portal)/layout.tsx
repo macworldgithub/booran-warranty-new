@@ -6,6 +6,7 @@ import { Sidebar } from '../../components/sidebar';
 import { ToastProvider } from '../../components/toast';
 import { UserProfile } from '../../lib/types';
 import { clearStoredSession } from '../../lib/api';
+import { ClerkSiteProvider } from '../../components/clerk-site-context';
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -67,18 +68,22 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     );
   }
 
+  if (!user) return null;
+
   return (
     <ToastProvider>
-      <div className="flex min-h-screen bg-[#f8fafc] text-slate-900">
-        <Sidebar
-          userRole={user?.role}
-          userName={user?.name}
-          userEmail={user?.email}
-        />
-        <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-          {children}
-        </main>
-      </div>
+      <ClerkSiteProvider user={user}>
+        <div className="flex min-h-screen bg-[#f8fafc] text-slate-900">
+          <Sidebar
+            userRole={user.role}
+            userName={user.name}
+            userEmail={user.email}
+          />
+          <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+            {children}
+          </main>
+        </div>
+      </ClerkSiteProvider>
     </ToastProvider>
   );
 }

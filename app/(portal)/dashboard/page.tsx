@@ -7,6 +7,7 @@ import { StatCard } from '../../../components/stat-card';
 import { AddBrandRuleModal } from '../../../components/add-brand-rule-modal';
 import { api } from '../../../lib/api';
 import { BrandPack, DashboardKPIs, FlagReasonStat, SitePerformance, WarrantyCase } from '../../../lib/types';
+import { ALL_ASSIGNED_SITES, useClerkSite } from '../../../components/clerk-site-context';
 
 const FLAG_REASON_LABELS: Record<string, string> = {
   POOR_LIGHTING_BLUR: 'Blurry / Under-Exposed',
@@ -320,6 +321,7 @@ const DEFAULT_SITES: SitePerformance[] = [
 ];
 
 export default function DashboardPage() {
+  const { activeSiteId } = useClerkSite();
   const [kpis, setKpis] = useState<DashboardKPIs>(DEFAULT_KPIS);
   const [flagReasons, setFlagReasons] = useState<FlagReasonStat[]>([]);
   const [sites, setSites] = useState<SitePerformance[]>(DEFAULT_SITES);
@@ -339,11 +341,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadData() {
+      setLoading(true);
       try {
+        const siteId = activeSiteId === ALL_ASSIGNED_SITES ? undefined : activeSiteId;
         const [kpiRes, flagRes, siteRes, packsRes] = await Promise.all([
-          api.getKPIs().catch(() => DEFAULT_KPIS),
-          api.getFlagReasons().catch(() => []),
-          api.getSitePerformance().catch(() => DEFAULT_SITES),
+          api.getKPIs(siteId).catch(() => DEFAULT_KPIS),
+          api.getFlagReasons(siteId).catch(() => []),
+          api.getSitePerformance(siteId).catch(() => siteId ? DEFAULT_SITES.filter((site) => site.siteId === siteId) : DEFAULT_SITES),
           api.getBrandPacks().catch(() => []),
         ]);
         if (kpiRes) setKpis(kpiRes);
@@ -357,7 +361,7 @@ export default function DashboardPage() {
       }
     }
     loadData();
-  }, []);
+  }, [activeSiteId]);
 
   async function openFlaggedModal(siteId: string | null, siteName: string) {
     setFlaggedModalSiteId(siteId);

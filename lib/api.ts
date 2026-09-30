@@ -893,22 +893,25 @@ export const api = {
   },
 
   // Dashboard Analytics
-  async getKPIs(): Promise<DashboardKPIs> {
-    const res = await fetch(`${BASE_URL}/dashboard/kpis`, {
+  async getKPIs(siteId?: string): Promise<DashboardKPIs> {
+    const query = siteId ? `?siteId=${encodeURIComponent(siteId)}` : '';
+    const res = await fetch(`${BASE_URL}/dashboard/kpis${query}`, {
       headers: getAuthHeader(),
     });
     return handleResponse(res);
   },
 
-  async getFlagReasons(): Promise<FlagReasonStat[]> {
-    const res = await fetch(`${BASE_URL}/dashboard/flag-reasons`, {
+  async getFlagReasons(siteId?: string): Promise<FlagReasonStat[]> {
+    const query = siteId ? `?siteId=${encodeURIComponent(siteId)}` : '';
+    const res = await fetch(`${BASE_URL}/dashboard/flag-reasons${query}`, {
       headers: getAuthHeader(),
     });
     return handleResponse(res);
   },
 
-  async getSitePerformance(): Promise<SitePerformance[]> {
-    const res = await fetch(`${BASE_URL}/dashboard/sites-performance`, {
+  async getSitePerformance(siteId?: string): Promise<SitePerformance[]> {
+    const query = siteId ? `?siteId=${encodeURIComponent(siteId)}` : '';
+    const res = await fetch(`${BASE_URL}/dashboard/sites-performance${query}`, {
       headers: getAuthHeader(),
     });
     return handleResponse(res);

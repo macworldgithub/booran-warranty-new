@@ -8,8 +8,10 @@ import { StatusBadge } from '../../../components/status-badge';
 import { Pagination } from '../../../components/pagination';
 import { api } from '../../../lib/api';
 import { WarrantyCase, CaseStatus, PaginationMeta } from '../../../lib/types';
+import { ALL_ASSIGNED_SITES, useClerkSite } from '../../../components/clerk-site-context';
 
 export default function CasesPage() {
+  const { activeSiteId, setActiveSiteId } = useClerkSite();
   const searchParams = useSearchParams();
   const [cases, setCases] = useState<WarrantyCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,14 @@ export default function CasesPage() {
     if (urlRuleKey) setRuleFilter(urlRuleKey);
     setInitializedFromUrl(true);
   }, []);
+
+  useEffect(() => {
+    if (userRole === 'CLERK') {
+      // Synchronize this page's existing filter with the portal-wide Clerk rooftop selection.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSiteFilter(activeSiteId === ALL_ASSIGNED_SITES ? 'ALL' : activeSiteId);
+    }
+  }, [activeSiteId, userRole]);
 
   useEffect(() => {
     if (initializedFromUrl) {
@@ -287,7 +297,12 @@ export default function CasesPage() {
 
               <select
                 value={siteFilter}
-                onChange={(e) => setSiteFilter(e.target.value)}
+                onChange={(e) => {
+                  setSiteFilter(e.target.value);
+                  if (userRole === 'CLERK') {
+                    setActiveSiteId(e.target.value === 'ALL' ? ALL_ASSIGNED_SITES : e.target.value);
+                  }
+                }}
                 className="input-field text-xs w-52"
               >
                 <option value="ALL">{userRole === 'CLERK' ? 'All Assigned Sites' : 'All Rooftops'}</option>

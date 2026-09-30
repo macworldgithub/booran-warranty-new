@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import { api } from '@/lib/api';
 import { LoanAgreement, LoanAgreementKpis } from '@/lib/types';
+import { ALL_ASSIGNED_SITES, useClerkSite } from '@/components/clerk-site-context';
 
 type RooftopOption = { label: string; siteId: string; fullName: string };
 
@@ -87,6 +88,7 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
 
 export default function LoanersPage() {
   const router = useRouter();
+  const { activeSiteId } = useClerkSite();
   const [selectedSiteId, setSelectedSiteId] = useState('all');
   const [userRole, setUserRole] = useState<string>('');
   const [sessionReady, setSessionReady] = useState(false);
@@ -190,6 +192,14 @@ export default function LoanersPage() {
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (sessionReady && isClerk) {
+      // Synchronize this page's existing filter with the portal-wide Clerk rooftop selection.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedSiteId(activeSiteId === ALL_ASSIGNED_SITES ? 'all' : activeSiteId);
+    }
+  }, [activeSiteId, isClerk, sessionReady]);
 
   // Modals & CRUD State
   const [previewAgreement, setPreviewAgreement] = useState<LoanAgreement | null>(null);

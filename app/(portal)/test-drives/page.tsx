@@ -6,6 +6,7 @@ import { Header } from '../../../components/header';
 import { useToast } from '../../../components/toast';
 import { api } from '../../../lib/api';
 import { Site } from '../../../lib/types';
+import { ALL_ASSIGNED_SITES, useClerkSite } from '../../../components/clerk-site-context';
 
 interface TechnicianPresence {
   technicianId: string;
@@ -96,6 +97,7 @@ const DEMO_ROAD_TEST_LOGS: RoadTestTrip[] = [
 export default function TestDrivesPage() {
   const { showToast } = useToast();
   const router = useRouter();
+  const { activeSiteId } = useClerkSite();
 
   const [activeTab, setActiveTab] = useState<'geofence' | 'logs'>('geofence');
   const [sites, setSites] = useState<Site[]>([]);
@@ -321,6 +323,14 @@ export default function TestDrivesPage() {
       cancelled = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (sitesReady && isClerk) {
+      // Synchronize this page's existing filter with the portal-wide Clerk rooftop selection.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedSiteId(activeSiteId === ALL_ASSIGNED_SITES ? 'all' : activeSiteId);
+    }
+  }, [activeSiteId, isClerk, sitesReady]);
 
   const loadGeofenceData = useCallback(async (siteId: string) => {
     try {
