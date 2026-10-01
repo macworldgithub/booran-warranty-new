@@ -78,7 +78,7 @@ export default function LoginPage() {
   const handleModeSwitch = (mode: 'signin' | 'signup') => {
     setAuthMode(mode);
     if (mode === 'signup') {
-      setSelectedRole('TECHNICIAN');
+      setSelectedRole('CLERK');
     }
     setIsOtpStep(false);
     setOtpCode('');
@@ -357,8 +357,8 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-900/5 backdrop-blur-xl">
-          {/* Mode Switcher */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100/80 rounded-2xl border border-slate-200 mb-6">
+          {/* Portal Sign In */}
+          <div className="grid grid-cols-1 p-1 bg-slate-100/80 rounded-2xl border border-slate-200 mb-6">
             <button
               type="button"
               onClick={() => handleModeSwitch('signin')}
@@ -370,26 +370,15 @@ export default function LoginPage() {
             >
               Sign In
             </button>
-            <button
-              type="button"
-              onClick={() => handleModeSwitch('signup')}
-              className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                authMode === 'signup'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-700 hover:text-slate-900'
-              }`}
-            >
-              Register Account
-            </button>
           </div>
 
-          {/* Role Selector Tabs (Only for Sign In; Register Account is restricted to Technicians) */}
+          {/* Role Selector Tabs */}
           {!isOtpStep && authMode === 'signin' && (
             <div className="mb-6">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
                 Select Workspace Role
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => handleRoleChange('ADMIN')}
@@ -405,7 +394,7 @@ export default function LoginPage() {
                         selectedRole === 'ADMIN' ? 'bg-[#E11F26]' : 'bg-slate-300'
                       }`}
                     />
-                    <span className="font-bold text-xs text-slate-900">Warranty Admin</span>
+                    <span className="font-bold text-xs text-slate-900">Site Admin</span>
                   </div>
                   <p className="text-[11px] text-slate-700">Full audit, packs, sites & review</p>
                 </button>
@@ -430,45 +419,6 @@ export default function LoginPage() {
                   <p className="text-[11px] text-slate-700">Assigned-site claim review</p>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange('TECHNICIAN')}
-                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
-                    selectedRole === 'TECHNICIAN'
-                      ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        selectedRole === 'TECHNICIAN' ? 'bg-[#E11F26]' : 'bg-slate-300'
-                      }`}
-                    />
-                    <span className="font-bold text-xs text-slate-900">Workshop Tech</span>
-                  </div>
-                  <p className="text-[11px] text-slate-700">Mobile camera & quick evidence capture</p>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Registration Notice for Techs */}
-          {!isOtpStep && authMode === 'signup' && (
-            <div className="mb-6 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center shrink-0 mt-0.5">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900">Workshop Technician Registration</span>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-red-100 text-[#E11F26]">Tech Only</span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                  Self-registration is available for Workshop Technicians. Warranty Admin accounts are provisioned internally by dealership management.
-                </p>
               </div>
             </div>
           )}
@@ -567,7 +517,7 @@ export default function LoginPage() {
                     <input
                       type="email"
                       required
-                      placeholder={selectedRole === 'ADMIN' ? 'admin@booran.com.au' : 'technician@booran.com.au'}
+                      placeholder={selectedRole === 'ADMIN' ? 'admin@booran.com.au' : 'clerk@booran.com.au'}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
@@ -792,7 +742,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     required
-                    placeholder="e.g. technician@booran.com.au"
+                    placeholder="e.g. admin@booran.com.au"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all font-mono"
