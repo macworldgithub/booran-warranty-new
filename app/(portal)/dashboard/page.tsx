@@ -320,11 +320,25 @@ const DEFAULT_SITES: SitePerformance[] = [
   },
 ];
 
+const SITES_PER_PAGE = 10;
+
+const DEFAULT_SITES_META = {
+  total: DEFAULT_SITES.length,
+  page: 1,
+  limit: SITES_PER_PAGE,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false,
+};
+
 export default function DashboardPage() {
   const { activeSiteId } = useClerkSite();
   const [kpis, setKpis] = useState<DashboardKPIs>(DEFAULT_KPIS);
   const [flagReasons, setFlagReasons] = useState<FlagReasonStat[]>([]);
   const [sites, setSites] = useState<SitePerformance[]>(DEFAULT_SITES);
+  const [sitesPage, setSitesPage] = useState(1);
+  const [sitesSearch, setSitesSearch] = useState('');
+  const [sitesMeta, setSitesMeta] = useState(DEFAULT_SITES_META);
   const [brandPacks, setBrandPacks] = useState<BrandPack[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -347,12 +361,23 @@ export default function DashboardPage() {
         const [kpiRes, flagRes, siteRes, packsRes] = await Promise.all([
           api.getKPIs(siteId).catch(() => DEFAULT_KPIS),
           api.getFlagReasons(siteId).catch(() => []),
-          api.getSitePerformance(siteId).catch(() => siteId ? DEFAULT_SITES.filter((site) => site.siteId === siteId) : DEFAULT_SITES),
+          api.getSitePerformance({
+            siteId,
+            page: sitesPage,
+            limit: SITES_PER_PAGE,
+            search: sitesSearch,
+          }).catch(() => ({
+            data: siteId ? DEFAULT_SITES.filter((site) => site.siteId === siteId) : DEFAULT_SITES,
+            meta: DEFAULT_SITES_META,
+          })),
           api.getBrandPacks().catch(() => []),
         ]);
         if (kpiRes) setKpis(kpiRes);
         if (flagRes && flagRes.length > 0) setFlagReasons(flagRes);
-        if (siteRes && siteRes.length > 0) setSites(siteRes);
+        if (siteRes) {
+          setSites(siteRes.data || []);
+          setSitesMeta(siteRes.meta || DEFAULT_SITES_META);
+        }
         if (packsRes && packsRes.length > 0) setBrandPacks(packsRes);
       } catch (err) {
         console.error('Failed to load dashboard:', err);
@@ -361,7 +386,16 @@ export default function DashboardPage() {
       }
     }
     loadData();
+  }, [activeSiteId, sitesPage, sitesSearch]);
+
+  useEffect(() => {
+    setSitesPage(1);
   }, [activeSiteId]);
+
+  const sitesTotalPages = Math.max(1, sitesMeta.totalPages || 1);
+  const safeSitesPage = Math.min(sitesPage, sitesTotalPages);
+  const sitesRangeStart = sitesMeta.total === 0 ? 0 : ((safeSitesPage - 1) * SITES_PER_PAGE) + 1;
+  const sitesRangeEnd = Math.min(((safeSitesPage - 1) * SITES_PER_PAGE) + sites.length, sitesMeta.total);
 
   async function openFlaggedModal(siteId: string | null, siteName: string) {
     setFlaggedModalSiteId(siteId);
@@ -538,6 +572,47 @@ export default function DashboardPage() {
                 </span>
               </div>
 
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <input
+                    type="text"
+                    value={sitesSearch}
+                    onChange={(e) => {
+                      setSitesSearch(e.target.value);
+                      setSitesPage(1);
+                    }}
+                    placeholder="Search rooftop by name, site ID, or RO prefix..."
+                    className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
+                  />
+                  <svg
+                    className="w-4 h-4 absolute left-3 top-2.5 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  {sitesSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSitesSearch('');
+                        setSitesPage(1);
+                      }}
+                      className="absolute right-3 top-2 text-sm text-slate-400 hover:text-slate-700"
+                      aria-label="Clear rooftop search"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {sitesSearch && (
+                  <span className="text-xs text-slate-500">
+                    {sitesMeta.total} match{sitesMeta.total !== 1 ? 'es' : ''}
+                  </span>
+                )}
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-semibold bg-slate-50">
@@ -581,8 +656,42 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ))}
+                    {sites.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 px-3 text-center text-slate-500">
+                          No rooftops match “{sitesSearch}”.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500">
+                <span>
+                  Showing <strong className="text-slate-900">{sitesRangeStart}-{sitesRangeEnd}</strong> of{' '}
+                  <strong className="text-slate-900">{sitesMeta.total}</strong> rooftops
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={safeSitesPage <= 1}
+                    onClick={() => setSitesPage((page) => Math.max(1, page - 1))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-2 font-semibold text-slate-600">
+                    Page {safeSitesPage} of {sitesTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={safeSitesPage >= sitesTotalPages}
+                    onClick={() => setSitesPage((page) => Math.min(sitesTotalPages, page + 1))}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">

@@ -15,6 +15,7 @@ import {
   FlagReasonCode,
   MediaType,
   PaginatedResult,
+  PaginationMeta,
   LoanAgreement,
   LoanAgreementKpis,
 } from "./types";
@@ -909,12 +910,35 @@ export const api = {
     return handleResponse(res);
   },
 
-  async getSitePerformance(siteId?: string): Promise<SitePerformance[]> {
-    const query = siteId ? `?siteId=${encodeURIComponent(siteId)}` : '';
-    const res = await fetch(`${BASE_URL}/dashboard/sites-performance${query}`, {
+  async getSitePerformance(params?: {
+    siteId?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{ data: SitePerformance[]; meta: PaginationMeta }> {
+    const query = new URLSearchParams();
+    if (params?.siteId) query.set('siteId', params.siteId);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.search?.trim()) query.set('search', params.search.trim());
+    const qs = query.toString();
+    const res = await fetch(`${BASE_URL}/dashboard/sites-performance${qs ? `?${qs}` : ''}`, {
       headers: getAuthHeader(),
     });
-    return handleResponse(res);
+    const payload = await handleResponse(res);
+    return Array.isArray(payload)
+      ? {
+          data: payload,
+          meta: {
+            total: payload.length,
+            page: 1,
+            limit: payload.length || 10,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          },
+        }
+      : (payload as { data: SitePerformance[]; meta: PaginationMeta });
   },
 
   // Loan Vehicle Operations
