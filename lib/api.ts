@@ -18,6 +18,9 @@ import {
   PaginationMeta,
   LoanAgreement,
   LoanAgreementKpis,
+  Hoist,
+  HoistInspection,
+  HoistSummary,
 } from "./types";
 
 const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
@@ -1170,6 +1173,69 @@ export const api = {
     const res = await fetch(`${BASE_URL}/test-drives/${id}`, {
       method: 'DELETE',
       headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getHoists(facility?: string, siteId?: string): Promise<Hoist[]> {
+    const params = new URLSearchParams();
+    if (facility && facility !== 'all') params.append('facility', facility);
+    if (siteId) params.append('siteId', siteId);
+    const query = params.toString() ? '?' + params.toString() : '';
+    const res = await fetch(`${BASE_URL}/hoists${query}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getHoistSummary(facility?: string): Promise<HoistSummary> {
+    const query = facility && facility !== 'all' ? '?facility=' + facility : '';
+    const res = await fetch(`${BASE_URL}/hoists/summary${query}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getHoistById(id: string): Promise<Hoist> {
+    const res = await fetch(`${BASE_URL}/hoists/${id}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async getHoistInspections(params?: { hoistId?: string; facility?: string; shiftDate?: string; limit?: number }): Promise<HoistInspection[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.hoistId) searchParams.append('hoistId', params.hoistId);
+    if (params?.facility && params.facility !== 'all') searchParams.append('facility', params.facility);
+    if (params?.shiftDate) searchParams.append('shiftDate', params.shiftDate);
+    if (params?.limit) searchParams.append('limit', String(params.limit));
+    const query = searchParams.toString() ? '?' + searchParams.toString() : '';
+    const res = await fetch(`${BASE_URL}/hoists/inspections${query}`, {
+      headers: getAuthHeader(),
+    });
+    return handleResponse(res);
+  },
+
+  async submitHoistInspection(data: any): Promise<HoistInspection> {
+    const res = await fetch(`${BASE_URL}/hoists/inspect`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async updateHoist(id: string, data: any): Promise<Hoist> {
+    const res = await fetch(`${BASE_URL}/hoists/${id}`, {
+      method: 'PATCH',
+      headers: {
+        ...getAuthHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
     return handleResponse(res);
   },

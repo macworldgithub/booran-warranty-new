@@ -77,6 +77,16 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
       ),
     },
     {
+      label: 'Hoist Inspections',
+      href: '/hoists',
+      badge: 'Daily',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+      ),
+    },
+    {
       href: '/brands',
       label: 'OEM Brands',
       icon: (
@@ -148,10 +158,20 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
         </svg>
       ),
     },
+    {
+      label: 'Hoist Inspections',
+      href: '/hoists',
+      badge: 'Daily',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+        </svg>
+      ),
+    },
   ];
 
   const clerkNavItems = adminNavItems.filter((item) =>
-    ['/dashboard', '/cases', '/loaners', '/test-drives'].includes(item.href),
+    ['/dashboard', '/cases', '/hoists', '/loaners', '/test-drives'].includes(item.href),
   );
   const navItems = isAdmin ? adminNavItems : isClerk ? clerkNavItems : techNavItems;
   const homeHref = isAdmin || isClerk ? '/dashboard' : '/cases';

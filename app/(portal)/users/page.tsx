@@ -41,13 +41,22 @@ export default function UsersPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole;
+    siteId: string;
+    authorizedSiteIds: string[];
+    workshopFacility?: string;
+  }>({
     name: '',
     email: '',
     password: 'Booran2026!',
     role: 'ADMIN' as UserRole,
     siteId: 'site_cranbourne_byd',
     authorizedSiteIds: ['site_cranbourne_byd'] as string[],
+    workshopFacility: 'all',
   });
 
   // Delete User Modal State
@@ -735,6 +744,24 @@ export default function UsersPage() {
                     </select>
                   </div>
                 )}
+              </div>
+
+
+              {/* Workshop Facility Assignment */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Workshop Facility Access (Daily Hoists & Brand Mix)
+                </label>
+                <select
+                  value={formData.workshopFacility}
+                  onChange={(e) => setFormData({ ...formData, workshopFacility: e.target.value })}
+                  className="input-field text-xs w-full bg-white"
+                >
+                  <option value="all">All Workshop Facilities (Unrestricted)</option>
+                  <option value="hyundai_chery">Hyundai & Chery Workshop (11 Hoists)</option>
+                  <option value="byd_kia">BYD & Kia Workshop (12 Hoists)</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">Controls hoist checklist visibility in the technician mobile app</p>
               </div>
 
               {/* Initial Password */}

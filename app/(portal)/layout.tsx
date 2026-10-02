@@ -34,14 +34,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         const parsed = JSON.parse(userStr);
         const role = String(parsed.role || '').toUpperCase();
         if (role === 'CLERK') {
-          const allowedPrefixes = ['/dashboard', '/cases', '/loaners', '/test-drives'];
+          const allowedPrefixes = ['/dashboard', '/cases', '/loaners', '/test-drives', '/hoists'];
           if (!allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
             router.replace('/dashboard');
             return;
           }
         }
         if (role === 'TECHNICIAN') {
-          const allowedPrefixes = ['/cases', '/brand-packs'];
+          const allowedPrefixes = ['/cases', '/brand-packs', '/hoists'];
           if (!allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
             router.replace('/cases');
             return;

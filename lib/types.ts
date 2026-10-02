@@ -429,3 +429,73 @@ export interface LoanAgreementKpis {
   dueSoon: number;
   overdue: number;
 }
+
+
+export type HoistStatus = 'OPERATIONAL' | 'FAULT_IDENTIFIED' | 'OUT_OF_SERVICE';
+export type HoistFacility = 'hyundai_chery' | 'byd_kia' | 'general' | 'all';
+export type InspectionStatus = 'PASS' | 'FAULT_IDENTIFIED' | 'TAGGED_OUT';
+export type ChecklistItemStatus = 'PASS' | 'FAULT' | 'NA';
+export type FaultSeverity = 'NONE' | 'MINOR' | 'MODERATE' | 'CRITICAL';
+
+export interface Hoist {
+  id: string;
+  hoistNumber: number;
+  name: string;
+  facility: 'hyundai_chery' | 'byd_kia' | 'general';
+  facilityName: string;
+  siteId: string;
+  brand: string;
+  capacityKg: number;
+  type: string;
+  status: HoistStatus;
+  lastInspectionDate?: string;
+  lastInspectionStatus?: InspectionStatus;
+  lastInspectedBy?: string;
+  lastInspectedByName?: string;
+  activeFaultNotes?: string;
+  lockoutTagoutActive: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HoistChecklistItem {
+  itemId: string;
+  title: string;
+  status: ChecklistItemStatus;
+  notes?: string;
+  photoUrl?: string;
+}
+
+export interface HoistInspection {
+  id: string;
+  hoistId: string;
+  hoistNumber: number;
+  facility: 'hyundai_chery' | 'byd_kia' | 'general';
+  siteId: string;
+  inspectorId: string;
+  inspectorName: string;
+  inspectorRole: string;
+  shiftDate: string;
+  shiftType: 'MORNING' | 'AFTERNOON' | 'NIGHT' | 'DAILY';
+  status: InspectionStatus;
+  checklistItems: HoistChecklistItem[];
+  faultNotes?: string;
+  faultSeverity: FaultSeverity;
+  photos: string[];
+  lockoutTagoutApplied: boolean;
+  correctiveActionRequired: boolean;
+  managerNotes?: string;
+  signedAt: string;
+  createdAt?: string;
+}
+
+export interface HoistSummary {
+  totalHoists: number;
+  inspectedToday: number;
+  pendingToday: number;
+  operational: number;
+  faultIdentified: number;
+  outOfService: number;
+  todayDate: string;
+}
