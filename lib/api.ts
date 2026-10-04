@@ -23,8 +23,9 @@ import {
   HoistSummary,
 } from "./types";
 
-const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
-const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
+const configuredBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "/api/v1").replace(/\/+$/, "");
+const isBrowser = typeof window !== "undefined";
+const BASE_URL = isBrowser ? "/api/v1" : configuredBaseUrl;
 
 export function clearStoredSession(): void {
   if (typeof window === 'undefined') return;
@@ -122,26 +123,49 @@ export const api = {
       password: string;
       role?: string;
     }): Promise<{ accessToken: string; user: UserProfile }> {
-      const res = await fetch(`${BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        let errorMsg = "Authentication failed. Please check your credentials.";
-        try {
-          const errJson = await res.json();
-          if (errJson.message) {
-            errorMsg = Array.isArray(errJson.message)
-              ? errJson.message.join(", ")
-              : errJson.message;
+      const deployedApiUrl = "https://warranty-evidence.omnisuiteai.com/api/v1";
+      const baseUrls = [BASE_URL, configuredBaseUrl, deployedApiUrl].filter(
+        (url, index, arr) => arr.indexOf(url) === index
+      );
+      const attempts = [
+        payload,
+        { email: payload.email, password: payload.password },
+      ];
+
+      let lastError = "Authentication failed. Please check your credentials.";
+
+      for (const baseUrl of baseUrls) {
+        for (const body of attempts) {
+          try {
+            const res = await fetch(`${baseUrl}/auth/login`, {
+              method: "POST",
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+              },
+              cache: "no-store",
+              body: JSON.stringify(body),
+            });
+            if (res.ok) {
+              return res.json();
+            }
+            try {
+              const errJson = await res.json();
+              if (errJson.message) {
+                lastError = Array.isArray(errJson.message)
+                  ? errJson.message.join(", ")
+                  : errJson.message;
+              }
+            } catch {
+              /* ignore */
+            }
+          } catch (err: any) {
+            lastError = err?.message || lastError;
           }
-        } catch {
-          /* ignore */
         }
-        throw new Error(errorMsg);
       }
-      return res.json();
+
+      throw new Error(lastError);
     },
         async sendRegistrationOtp(payload: {
       email: string;
