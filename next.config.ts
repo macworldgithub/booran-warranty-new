@@ -1,6 +1,8 @@
 ﻿import type { NextConfig } from "next";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  'https://warranty-evidence.omnisuiteai.com';
 
 const nextConfig: NextConfig = {
   async rewrites() {
