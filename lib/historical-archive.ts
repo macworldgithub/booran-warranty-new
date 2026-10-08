@@ -3,9 +3,9 @@ export function canReadHistoricalArchive(role: string, email: string) {
 }
 
 export interface ArchivedFile { id: string; name: string; originalPath: string; bytes: number }
-export interface ArchivedJob { id: string; title: string; organisation: string; capturedAt: string | null; issues: string[]; fileCount: number }
+export interface ArchivedJob { id: string; title: string; organisation: string; sourceUrl?: string; sourceFolder?: string; capturedAt: string | null; issues: string[]; fileCount: number }
 export interface ArchivedDetail extends ArchivedJob { reportText: string; files: ArchivedFile[] }
-export interface ArchivePage { items: ArchivedJob[]; total: number; archiveTotal: number; page: number; pages: number }
+export interface ArchivePage { items: ArchivedJob[]; total: number; archiveTotal: number; page: number; pages: number; organisation?: string; importedAt?: string }
 
 async function request(path: string, signal?: AbortSignal) {
   const token = localStorage.getItem('booran_auth_token') || localStorage.getItem('booran_jwt');
@@ -21,7 +21,12 @@ export const historicalArchive = {
   detail: async (id: string, signal?: AbortSignal): Promise<ArchivedDetail> => (await request(`/${encodeURIComponent(id)}`, signal)).json(),
   download: async (id: string, file: ArchivedFile) => {
     const response = await request(`/${encodeURIComponent(id)}/files/${encodeURIComponent(file.id)}`);
-    const url = URL.createObjectURL(await response.blob());
+    const blob = await response.blob();
+    if ((await blob.slice(0, 150).text()).startsWith('version https://git-lfs.github.com/spec/v1')) {
+      throw new Error('The archive file has not been downloaded to the server yet. Please contact an administrator.');
+    }
+    if (blob.size !== file.bytes) throw new Error('The downloaded archive file is incomplete. Please try again or contact an administrator.');
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url; link.download = file.name; document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
