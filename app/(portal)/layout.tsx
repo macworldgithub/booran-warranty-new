@@ -7,6 +7,7 @@ import { ToastProvider } from '../../components/toast';
 import { UserProfile } from '../../lib/types';
 import { clearStoredSession } from '../../lib/api';
 import { ClerkSiteProvider } from '../../components/clerk-site-context';
+import { canReadHistoricalArchive } from '../../lib/historical-archive';
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         const role = String(parsed.role || '').toUpperCase();
         if (role === 'CLERK') {
           const allowedPrefixes = ['/dashboard', '/cases', '/loaners', '/test-drives', '/hoists'];
+          if (canReadHistoricalArchive(role, parsed.email || '')) allowedPrefixes.push('/historical-archive');
           if (!allowedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
             router.replace('/dashboard');
             return;

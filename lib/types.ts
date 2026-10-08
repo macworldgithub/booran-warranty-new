@@ -499,3 +499,12 @@ export interface HoistSummary {
   outOfService: number;
   todayDate: string;
 }
+export interface WarrantyBulletin {
+  id: string;
+  brandId: string;
+  title: string;
+  bulletinNumber: string;
+  issueDate: string;
+  effectiveDate: string;
+  status: 'DRAFT' | 'PUBLISHED';
+}

@@ -372,7 +372,24 @@ export default function DashboardPage() {
           })),
           api.getBrandPacks().catch(() => []),
         ]);
-        if (kpiRes) setKpis(kpiRes);
+        const siteRows = siteRes?.data || [];
+        const selectedSiteMetrics = siteId
+          ? siteRows.find((site) => site.siteId === siteId)
+          : undefined;
+
+        if (kpiRes) {
+          // For a single-rooftop view, keep the KPI card aligned with the
+          // selected rooftop row instead of displaying the group aggregate.
+          setKpis(
+            selectedSiteMetrics
+              ? {
+                  ...kpiRes,
+                  totalCasesOpened: selectedSiteMetrics.totalCases,
+                  activeFlaggedCases: selectedSiteMetrics.flaggedCount,
+                }
+              : kpiRes
+          );
+        }
         if (flagRes && flagRes.length > 0) setFlagReasons(flagRes);
         if (siteRes) {
           setSites(siteRes.data || []);

@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { UserRole } from '@/lib/types';
+import { canReadHistoricalArchive } from '@/lib/historical-archive';
 import { ALL_ASSIGNED_SITES, useClerkSite } from './clerk-site-context';
 
 interface SidebarProps {
@@ -125,6 +126,11 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
+
+    },
+    {
+      label: 'Warranty Bulletins', href: '/warranty-bulletins',
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M6 3h9l3 3v15H6V3zm3 8h6m-6 4h6" /></svg>,
     },
   ];
 
@@ -174,6 +180,10 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
     ['/dashboard', '/cases', '/hoists', '/loaners', '/test-drives'].includes(item.href),
   );
   const navItems = isAdmin ? adminNavItems : isClerk ? clerkNavItems : techNavItems;
+  if (canReadHistoricalArchive(role, userEmail)) navItems.push({
+    label: 'Booran Motors Archive', href: '/historical-archive',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M4 4h16v4H4zM6 8v12h12V8M10 12h4" /></svg>,
+  });
   const homeHref = isAdmin || isClerk ? '/dashboard' : '/cases';
   const roleLabel = isAdmin ? 'ADMIN' : isClerk ? 'CLERK' : 'TECH';
 
@@ -240,15 +250,14 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  item.highlight
+                className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${item.highlight
                     ? isActive
                       ? 'bg-[#E11F26] text-white shadow-lg shadow-red-950/60 font-bold'
                       : 'bg-red-950/40 text-red-400 border border-red-800/60 hover:bg-[#E11F26] hover:text-white font-bold'
                     : isActive
-                    ? 'bg-[#E11F26] text-white font-bold shadow-lg shadow-red-950/50'
-                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                }`}
+                      ? 'bg-[#E11F26] text-white font-bold shadow-lg shadow-red-950/50'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className={`transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
@@ -260,11 +269,10 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
                 </div>
                 {item.badge && (
                   <span
-                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors ${
-                      isActive
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors ${isActive
                         ? 'bg-white text-[#E11F26]'
                         : 'bg-red-950/80 text-red-300 border border-red-800/60'
-                    }`}
+                      }`}
                   >
                     {item.badge}
                   </span>
