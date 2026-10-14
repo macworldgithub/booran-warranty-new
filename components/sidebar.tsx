@@ -179,6 +179,10 @@ export function Sidebar({ userRole = 'TECHNICIAN', userName = 'Marcus Vance', us
   const clerkNavItems = adminNavItems.filter((item) =>
     ['/dashboard', '/cases', '/hoists', '/loaners', '/test-drives'].includes(item.href),
   );
+  if (isAdmin) adminNavItems.push({
+    label: 'Technician Invitations', href: '/invitations',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" d="M3 5h18v14H3V5zm0 0 9 7 9-7" /></svg>,
+  });
   const navItems = isAdmin ? adminNavItems : isClerk ? clerkNavItems : techNavItems;
   if (canReadHistoricalArchive(role, userEmail)) navItems.push({
     label: 'Booran Motors Archive', href: '/historical-archive',
