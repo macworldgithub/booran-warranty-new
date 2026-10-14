@@ -1,5 +1,5 @@
 export function canReadHistoricalArchive(role: string, email: string) {
-  return role === 'ADMIN' || (role === 'CLERK' && ['clerk@dandenong.com', 'clerk@morang.com', 'clerk@skoda.com'].includes(email.trim().toLowerCase()));
+  return role === 'ADMIN' || (role === 'CLERK' && ['clerk@dandenong.com', 'clerk@morang.com', 'clerk@skoda.com', 'sioneh@totalaftersalessolutions.com'].includes(email.trim().toLowerCase()));
 }
 
 export interface ArchivedFile { id: string; name: string; originalPath: string; bytes: number }
