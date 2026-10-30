@@ -8,7 +8,7 @@ import { StatusBadge } from '../../../components/status-badge';
 import { AddBrandRuleModal } from '../../../components/add-brand-rule-modal';
 import { useToast } from '../../../components/toast';
 import { api, resolveMediaUrl } from '../../../lib/api';
-import { BrandPack, BrandPackRule, FaultCategory, WarrantyCase } from '../../../lib/types';
+import { Brand, BrandPack, BrandPackRule, FaultCategory, WarrantyCase } from '../../../lib/types';
 
 const FAULT_CATEGORIES: FaultCategory[] = [
   'Battery and high-voltage (HV) components',
@@ -124,6 +124,51 @@ const DEFAULT_BENCHMARK: BenchmarkInfo = {
 export default function BrandPacksPage() {
   const { showToast } = useToast();
   const [packs, setPacks] = useState<BrandPack[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [canCreate, setCanCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ brandId: '', name: '', description: '', template: 'blank' });
+  useEffect(() => {
+    try {
+      const profile = JSON.parse(localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile') || '{}');
+      setCanCreate(String(profile.role).toUpperCase() === 'ADMIN');
+    } catch { setCanCreate(false); }
+  }, []);
+
+  const openCreate = async () => {
+    if (createLoading) return;
+    setCreateLoading(true);
+    setCreateError('');
+    try {
+      const available = await api.getBrands();
+      setBrands(available.filter((brand) => brand.isActive));
+      setCreateForm({ brandId: '', name: '', description: '', template: 'blank' });
+      setCreateOpen(true);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not load OEM brands', 'error');
+    } finally { setCreateLoading(false); }
+  };
+
+  const createPack = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (createSaving) return;
+    setCreateSaving(true);
+    setCreateError('');
+    try {
+      const created = await api.createBrandPack(createForm);
+      await loadData();
+      setSelectedPack(created);
+      setPackSearchQuery('');
+      setPackBrandFilter('ALL');
+      setCreateOpen(false);
+      showToast('Draft created. Add requirements, preview, then publish when ready.', 'success');
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Could not create brand pack');
+    } finally { setCreateSaving(false); }
+  };
   const [cases, setCases] = useState<WarrantyCase[]>([]);
   const [selectedPack, setSelectedPack] = useState<BrandPack | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,17 +261,6 @@ export default function BrandPacksPage() {
       await loadData();
     } catch (err: any) {
       showToast(err.message || 'Failed to publish brand pack', 'error');
-    }
-  };
-
-  const handleClone = async (packId: string) => {
-    try {
-      const cloned = await api.cloneBrandPackVersion(packId);
-      showToast(`Created new draft v${cloned.version}!`, 'success');
-      await loadData();
-      setSelectedPack(cloned);
-    } catch (err: any) {
-      showToast(err.message || 'Failed to clone brand pack', 'error');
     }
   };
 
@@ -578,6 +612,20 @@ export default function BrandPacksPage() {
       />
 
       <div className="p-6 max-w-7xl mx-auto w-full space-y-6">
+        {canCreate && <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div><p className="text-sm font-bold text-slate-900">Configure warranty requirements</p><p className="mt-1 text-xs text-slate-500">Start a brand checklist, add evidence rules, then publish.</p></div><button type="button" onClick={openCreate} disabled={createLoading} aria-busy={createLoading} className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white text-sm font-bold shadow-sm transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-wait disabled:opacity-70"><span aria-hidden="true">+</span>{createLoading ? 'Opening…' : 'Create Brand Pack'}</button></div>}
+        <Modal isOpen={createOpen} onClose={() => { if (!createSaving) setCreateOpen(false); }} title="Create Brand Pack" maxWidth="xl">
+          <form onSubmit={createPack} className="p-6 space-y-5 text-sm text-slate-800 [&_label]:font-semibold [&_input]:cursor-text [&_textarea]:cursor-text [&_select]:cursor-pointer">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><span className="inline-block rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">New draft</span><p className="mt-2 text-sm text-slate-600">Choose an OEM brand and a starting checklist. Assign brands to Dandenong through Dealership Sites.</p></div>
+            <label className="block">Brand *<select autoFocus required value={createForm.brandId} onChange={(e) => setCreateForm({ ...createForm, brandId: e.target.value })} className="input-field w-full mt-1"><option value="">Select OEM brand</option>{brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
+            {brands.length === 0 && <p>Add an active brand under OEM Brands first.</p>}
+            <label className="block">Pack Name *<input required maxLength={160} value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="Chery Warranty Requirements" className="input-field w-full mt-1" /></label>
+            <label className="block">Description / Checklist Reference<textarea rows={3} placeholder="Add the warranty procedure, document reference, or a short description" value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} className="input-field w-full mt-1" /></label>
+            <label className="block">Starting Template<select value={createForm.template} onChange={(e) => setCreateForm({ ...createForm, template: e.target.value })} className="input-field w-full mt-1"><option value="blank">Blank checklist</option><option value="common">Common warranty checklist</option></select></label>
+            <p className="text-xs text-slate-500">Review template requirements against the manufacturer procedure before publishing. Creating a draft does not replace a live pack.</p>
+            {createError && <p role="alert" className="text-red-700">{createError}</p>}
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-5"><button type="button" disabled={createSaving} onClick={() => setCreateOpen(false)} className="cursor-pointer rounded-xl border border-slate-300 px-4 py-2.5 font-semibold hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed">Cancel</button><button type="submit" disabled={createSaving || !createForm.name.trim() || !createForm.brandId} className="cursor-pointer px-4 py-2.5 rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50">{createSaving ? 'Saving…' : 'Save Draft'}</button></div>
+          </form>
+        </Modal>
         {/* Top Info Banner / Quick Stats - Clean White Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
@@ -843,17 +891,6 @@ export default function BrandPacksPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                       </svg>
                       📱 Mobile Simulator
-                    </button>
-
-                    <button
-                      onClick={() => handleClone(selectedPack.id)}
-                      className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-                      title="Duplicate this configuration to test new rules safely"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Clone Draft
                     </button>
 
                     {selectedPack.status === 'DRAFT' && (

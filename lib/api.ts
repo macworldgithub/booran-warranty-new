@@ -540,6 +540,13 @@ export const api = {
     return handleResponse(res);
   },
 
+  async createBrandPack(data: { brandId: string; name: string; description: string; template: string }): Promise<BrandPack> {
+    const res = await fetch(`${BASE_URL}/brand-packs`, {
+      method: 'POST', headers: getAuthHeader(), body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   async getBrandPack(id: string): Promise<BrandPack> {
     const res = await fetch(`${BASE_URL}/brand-packs/${id}`, {
       headers: getAuthHeader(),
