@@ -123,8 +123,7 @@ export const api = {
       password: string;
       role?: string;
     }): Promise<{ accessToken: string; user: UserProfile }> {
-      const deployedApiUrl = "https://warranty-evidence.omnisuiteai.com/api/v1";
-      const baseUrls = [BASE_URL, configuredBaseUrl, deployedApiUrl].filter(
+      const baseUrls = [BASE_URL, configuredBaseUrl].filter(
         (url, index, arr) => arr.indexOf(url) === index
       );
       const attempts = [
