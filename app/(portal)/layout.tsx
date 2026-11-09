@@ -3,11 +3,50 @@
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '../../components/sidebar';
+import { MobileNav } from '../../components/mobile-nav';
 import { ToastProvider } from '../../components/toast';
 import { UserProfile } from '../../lib/types';
 import { clearStoredSession } from '../../lib/api';
 import { ClerkSiteProvider } from '../../components/clerk-site-context';
 import { canReadHistoricalArchive } from '../../lib/historical-archive';
+import { MobileMenuProvider, useMobileMenu } from '../../components/mobile-menu-context';
+import { PwaRegister } from '../../components/pwa-register';
+import { PwaInstallBanner } from '../../components/pwa-install-banner';
+
+function PortalLayoutInner({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user: UserProfile;
+}) {
+  const { isOpen, closeMenu, openMenu } = useMobileMenu();
+
+  return (
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 relative">
+      {/* Sidebar with desktop and mobile slide-over modes */}
+      <Sidebar
+        userRole={user.role}
+        userName={user.name}
+        userEmail={user.email}
+        mobileOpen={isOpen}
+        onMobileClose={closeMenu}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden pb-20 lg:pb-8">
+        {children}
+      </main>
+
+      {/* Bottom App Navigation Bar on Mobile */}
+      <MobileNav userRole={user.role} onOpenMenu={openMenu} />
+
+      {/* Progressive Web App Install Prompt & Offline Engine */}
+      <PwaInstallBanner />
+      <PwaRegister />
+    </div>
+  );
+}
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -75,16 +114,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   return (
     <ToastProvider>
       <ClerkSiteProvider user={user}>
-        <div className="flex min-h-screen bg-[#f8fafc] text-slate-900">
-          <Sidebar
-            userRole={user.role}
-            userName={user.name}
-            userEmail={user.email}
-          />
-          <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+        <MobileMenuProvider>
+          <PortalLayoutInner user={user}>
             {children}
-          </main>
-        </div>
+          </PortalLayoutInner>
+        </MobileMenuProvider>
       </ClerkSiteProvider>
     </ToastProvider>
   );

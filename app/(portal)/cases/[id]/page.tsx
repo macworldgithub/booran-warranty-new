@@ -636,12 +636,13 @@ export default function CaseDetailPage() {
             : ''
         }`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
             <Link
               href="/cases"
-              className="btn-ghost text-xs py-2 px-3"
+              className="btn-ghost text-xs py-1.5 sm:py-2 px-2.5 sm:px-3"
             >
-              ← Back to Queue
+              <span className="hidden sm:inline">← Back</span>
+              <span className="sm:hidden">←</span>
             </Link>
 
             {/* Clerk & Admin Review Controls - NOT shown on Technician Role */}
@@ -649,23 +650,25 @@ export default function CaseDetailPage() {
               <>
                 <button
                   onClick={handleGeneratePack}
-                  className="px-3.5 py-2 rounded-lg bg-white border border-slate-300 hover:border-[#E11F26] text-slate-700 hover:text-[#E11F26] text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-white border border-slate-300 hover:border-[#E11F26] text-slate-700 hover:text-[#E11F26] text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  title="Export OEM ZIP Pack"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  <span>Export OEM ZIP Pack</span>
+                  <span className="hidden md:inline">Export ZIP</span>
                 </button>
                 {caseData.status !== 'Submitted' && caseData.status !== 'Flagged' && (
                   <>
                     <button
                       onClick={() => setFlagModalOpen(true)}
-                      className="px-3.5 py-2 rounded-lg bg-red-50 border border-red-200 text-[#E11F26] hover:bg-[#E11F26] hover:text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-red-50 border border-red-200 text-[#E11F26] hover:bg-[#E11F26] hover:text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                      title="Flag for Retake"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                       </svg>
-                      <span>Flag for Retake</span>
+                      <span className="hidden sm:inline">Flag</span>
                     </button>
                     <button
                       onClick={() => {
@@ -676,17 +679,17 @@ export default function CaseDetailPage() {
                         setSubmitModalOpen(true);
                       }}
                       disabled={hasUnresolvedFlags}
-                      className={`text-xs py-2 px-4 flex items-center gap-1.5 rounded-lg font-bold transition-all shadow-xs ${
+                      className={`text-xs py-1.5 sm:py-2 px-3 sm:px-4 flex items-center gap-1.5 rounded-xl font-bold transition-all shadow-xs active:scale-95 ${
                         hasUnresolvedFlags
                           ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
                       }`}
                       title={hasUnresolvedFlags ? `Approval blocked: ${unresolvedFlags.length} reject reason(s) pending retake` : 'Approve and submit to OEM'}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={hasUnresolvedFlags ? "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" : "M5 13l4 4L19 7"} />
                       </svg>
-                      <span>{hasUnresolvedFlags ? '🔒 Approve Blocked (Flagged)' : 'Approve & Submit'}</span>
+                      <span>{hasUnresolvedFlags ? 'Blocked' : 'Approve & Submit'}</span>
                     </button>
                   </>
                 )}
@@ -698,24 +701,24 @@ export default function CaseDetailPage() {
               <button
                 onClick={handleSubmitFromWorkshop}
                 disabled={hasUnresolvedFlags}
-                className={`text-xs py-2 px-4 flex items-center gap-1.5 rounded-lg font-bold transition-all shadow-xs ${
+                className={`text-xs py-1.5 sm:py-2 px-3 sm:px-4 flex items-center gap-1.5 rounded-xl font-bold transition-all shadow-xs active:scale-95 ${
                   hasUnresolvedFlags
                     ? 'bg-red-50 text-red-600 border border-red-200 cursor-not-allowed opacity-90'
                     : 'btn-primary'
                 }`}
                 title={hasUnresolvedFlags ? `Submit locked: ${unresolvedFlags.length} reject reason(s) must be retaken first` : 'Submit to Clerk Review'}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={hasUnresolvedFlags ? "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" : "M5 13l4 4L19 7"} />
                 </svg>
-                <span>{hasUnresolvedFlags ? `🔒 Submit Locked (${unresolvedFlags.length} Reject Reasons)` : 'Submit to Clerk Review'}</span>
+                <span>{hasUnresolvedFlags ? 'Submit Locked' : 'Submit to Clerk'}</span>
               </button>
             )}
           </div>
         }
       />
 
-      <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div className="p-3 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto w-full">
         {/* Dedicated Workshop Retake Alert (Spec §6, §8.3) */}
         {flagsList.filter((f) => !f.resolvedAt).length > 0 && (
           <div className="p-6 rounded-2xl bg-red-50 border-2 border-[#E11F26] shadow-sm space-y-4 animate-slideInLeft">

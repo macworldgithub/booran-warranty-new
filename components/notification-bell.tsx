@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Bell, AlertTriangle, Inbox, CheckCircle2, ArrowRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { WarrantyCase } from '../lib/types';
 
@@ -174,19 +175,7 @@ export function NotificationBell() {
         aria-label="View notifications"
         className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200"
       >
-        <svg
-          className="w-5 h-5 text-slate-700"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-          />
-        </svg>
+        <Bell className="w-5 h-5 text-slate-700" />
 
         {/* Unread Counter Badge */}
         {unreadCount > 0 && (
@@ -198,7 +187,7 @@ export function NotificationBell() {
 
       {/* Notification Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 border border-slate-200 z-50 overflow-hidden animate-fadeIn">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 border border-slate-200 z-50 overflow-hidden animate-fadeIn">
           {/* Header */}
           <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -247,16 +236,16 @@ export function NotificationBell() {
                     {/* Status Dot / Icon */}
                     <div className="shrink-0 mt-0.5">
                       {item.type === 'FLAG' ? (
-                        <div className="w-7 h-7 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center text-[#E11F26] text-xs font-bold">
-                          ⚠️
+                        <div className="w-7 h-7 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center text-[#E11F26]">
+                          <AlertTriangle className="w-4 h-4" />
                         </div>
                       ) : item.type === 'NEW_CASE' ? (
-                        <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 text-xs font-bold">
-                          📥
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
+                          <Inbox className="w-4 h-4" />
                         </div>
                       ) : (
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 text-xs font-bold">
-                          ✓
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                          <CheckCircle2 className="w-4 h-4" />
                         </div>
                       )}
                     </div>
@@ -299,7 +288,7 @@ export function NotificationBell() {
               className="text-[#E11F26] hover:text-[#c81a20] font-bold text-[11px] flex items-center gap-1 transition-colors"
             >
               <span>View Review Inbox</span>
-              <span>→</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
 
             <button

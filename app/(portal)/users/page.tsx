@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { CheckCircle2, AlertCircle, Search, Plus, X, Edit2, Trash2, Loader2, Users } from 'lucide-react';
 import { Header } from '../../../components/header';
 import { Pagination } from '../../../components/pagination';
 import { api } from '../../../lib/api';
@@ -285,13 +286,9 @@ export default function UsersPage() {
           >
             <div className="flex items-center gap-2">
               {notificationMsg.type === 'success' ? (
-                <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               ) : (
-                <svg className="w-4 h-4 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
               )}
               <span>{notificationMsg.text}</span>
             </div>
@@ -299,14 +296,14 @@ export default function UsersPage() {
               onClick={() => setNotificationMsg(null)}
               className="text-slate-400 hover:text-slate-600 text-sm px-1 cursor-pointer"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
         {/* Search, Filter & Action Bar */}
-        <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
-          <div className="relative flex-1 min-w-[280px]">
+        <div className="bg-white p-4 border border-slate-200 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1 min-w-0 sm:min-w-[280px]">
             <input
               type="text"
               placeholder="Search by name, email, role, or site ID..."
@@ -314,26 +311,14 @@ export default function UsersPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input-field pl-9 pr-8 text-xs w-full"
             />
-            <svg
-              className="w-4 h-4 absolute left-3 top-3 text-slate-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 text-sm"
                 title="Clear search"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -377,9 +362,7 @@ export default function UsersPage() {
               onClick={openCreateModal}
               className="px-4 py-2 bg-[#E11F26] hover:bg-[#c9181e] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer shrink-0"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-              </svg>
+              <Plus className="w-4 h-4" />
               <span>Add User</span>
             </button>
           </div>
@@ -397,7 +380,7 @@ export default function UsersPage() {
                 setSearchQuery('');
                 setRoleFilter('ALL');
               }}
-              className="text-[#E11F26] hover:underline font-semibold"
+              className="text-[#E11F26] hover:underline font-semibold cursor-pointer"
             >
               Reset Filters
             </button>
@@ -406,7 +389,8 @@ export default function UsersPage() {
 
         {/* Table Container */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs min-w-[650px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-semibold">
               <tr>
                 <th className="py-3.5 px-4">User</th>
@@ -429,14 +413,7 @@ export default function UsersPage() {
                   <td colSpan={6} className="py-16 text-center">
                     <div className="max-w-xs mx-auto space-y-2">
                       <div className="w-10 h-10 rounded-full bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center mx-auto">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                          />
-                        </svg>
+                        <Search className="w-5 h-5" />
                       </div>
                       <p className="text-sm font-semibold text-slate-900">No users matched your search</p>
                       <p className="text-xs text-slate-500">
@@ -524,6 +501,7 @@ export default function UsersPage() {
               )}
             </tbody>
           </table>
+          </div>
 
           {!loading && filteredUsers.length > 0 && (
             <Pagination
@@ -573,18 +551,14 @@ export default function UsersPage() {
             {/* Error / Success Feedback */}
             {formError && (
               <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0 text-[#E11F26]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <AlertCircle className="w-4 h-4 shrink-0 text-[#E11F26]" />
                 <span>{formError}</span>
               </div>
             )}
 
             {formSuccess && (
               <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium flex items-center gap-2">
-                <svg className="w-4 h-4 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                 <span>{formSuccess}</span>
               </div>
             )}
@@ -811,10 +785,7 @@ export default function UsersPage() {
                 >
                   {formSubmitting ? (
                     <>
-                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>{editingUser ? 'Saving Changes...' : 'Creating Account...'}</span>
                     </>
                   ) : (
@@ -834,14 +805,7 @@ export default function UsersPage() {
             {/* Modal Icon & Header */}
             <div className="flex items-center gap-3.5 mb-4">
               <div className="w-11 h-11 rounded-2xl bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
+                <Trash2 className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900">Delete User Account</h3>
@@ -892,10 +856,7 @@ export default function UsersPage() {
               >
                 {isDeleting ? (
                   <>
-                    <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>Deleting...</span>
                   </>
                 ) : (

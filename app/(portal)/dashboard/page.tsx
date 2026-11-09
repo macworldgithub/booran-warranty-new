@@ -2,6 +2,23 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import {
+  Layers,
+  Plus,
+  Upload,
+  ArrowRight,
+  FileText,
+  Zap,
+  AlertTriangle,
+  Clock,
+  Building2,
+  Car,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+} from 'lucide-react';
 import { Header } from '../../../components/header';
 import { StatCard } from '../../../components/stat-card';
 import { AddBrandRuleModal } from '../../../components/add-brand-rule-modal';
@@ -439,14 +456,12 @@ export default function DashboardPage() {
         subtitle="Live cross-dealership KPIs, First-Time Pass Rates, and Flag Analytics"
       />
 
-      <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto w-full">
         {/* OEM Standards & Rules Quick Action Banner */}
-        <div className="p-4 rounded-xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26] shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <Layers className="w-5 h-5 text-[#E11F26]" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -470,31 +485,33 @@ export default function DashboardPage() {
                 setRuleModalMode('MANUAL');
                 setRuleModalOpen(true);
               }}
-              className="px-3.5 py-2 rounded-lg bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
             >
-              <span>➕ Add Brand Rule</span>
+              <Plus className="w-4 h-4" />
+              <span>Add Brand Rule</span>
             </button>
             <button
               onClick={() => {
                 setRuleModalMode('IMPORT');
                 setRuleModalOpen(true);
               }}
-              className="px-3.5 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-[#E11F26] font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-[#E11F26] font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
             >
-              <span>📁 Upload CSV / Excel</span>
+              <Upload className="w-4 h-4 text-slate-600" />
+              <span>Upload CSV / Excel</span>
             </button>
             <Link
               href="/brand-packs"
-              className="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-slate-400 text-xs font-semibold flex items-center gap-1 transition-all"
+              className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-slate-400 text-xs font-semibold flex items-center gap-1 transition-all"
             >
               <span>Rules CRM</span>
-              <span>➔</span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
             </Link>
           </div>
         </div>
 
         {/* KPI Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           <StatCard
             label="Total Opened"
             value={kpis?.totalCasesOpened ?? '...'}
@@ -502,11 +519,7 @@ export default function DashboardPage() {
             accent="blue"
             trend="+14%"
             trendPositive={true}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
+            icon={<FileText className="w-5 h-5 text-[#E11F26]" />}
           />
           <StatCard
             label="Same-Day SLA"
@@ -515,11 +528,7 @@ export default function DashboardPage() {
             accent="green"
             trend="+5.2%"
             trendPositive={true}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            }
+            icon={<Zap className="w-5 h-5 text-emerald-600" />}
           />
           <div className="cursor-pointer" onClick={() => openFlaggedModal(null, 'All Rooftops')}>
             <StatCard
@@ -529,11 +538,7 @@ export default function DashboardPage() {
               accent="red"
               trend="-3 cases"
               trendPositive={true}
-              icon={
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              }
+              icon={<AlertTriangle className="w-5 h-5 text-[#E11F26]" />}
             />
           </div>
           <StatCard
@@ -543,33 +548,21 @@ export default function DashboardPage() {
             accent="cyan"
             trend="-45 min"
             trendPositive={true}
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
+            icon={<Clock className="w-5 h-5 text-slate-700" />}
           />
           <StatCard
             label="Rooftops"
             value={kpis?.activeRooftopsCount ?? 4}
             subtext="Booran VIC Sites"
             accent="gold"
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            }
+            icon={<Building2 className="w-5 h-5 text-amber-600" />}
           />
           <StatCard
             label="OEM Brands"
             value={kpis?.activeBrandsCount ?? 8}
             subtext="BYD, Kia, Hyundai..."
             accent="blue"
-            icon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-            }
+            icon={<Car className="w-5 h-5 text-[#E11F26]" />}
           />
         </div>
 

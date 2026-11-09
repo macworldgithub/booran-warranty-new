@@ -2,6 +2,26 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Plus,
+  KeyRound,
+  Car,
+  Building2,
+  Search,
+  RotateCw,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  Zap,
+  Gauge,
+  X,
+  FileText,
+  Edit2,
+  Check,
+  AlertCircle,
+  Download,
+  ShieldCheck,
+} from 'lucide-react';
 import { Header } from '@/components/header';
 import { api } from '@/lib/api';
 import { LoanAgreement, LoanAgreementKpis } from '@/lib/types';
@@ -668,28 +688,24 @@ export default function LoanersPage() {
             : "Booran Motor Group • Digital Customer Agreements & Electronic SOW Compliance"
         }
         action={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap justify-end">
             <button
               onClick={() => openIssueModal('SERVICE_LOANER')}
-              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-              </svg>
-              Issue Loaner
+              <Plus className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-slate-700" />
+              <span>Issue Loaner</span>
             </button>
             <button
               onClick={() => openIssueModal('TEST_DRIVE')}
-              className="px-3.5 py-2 bg-[#D71920] hover:bg-[#B91218] text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-[#D71920] hover:bg-[#B91218] text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-              </svg>
-              Start Test Drive
+              <Car className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
+              <span className="hidden xs:inline">Start</span> Test Drive
             </button>
 
             {isTechnician ? (
-              <div className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 shadow-xs">
+              <div className="hidden md:flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-slate-500">Rooftop:</span>
                 <span className="font-extrabold text-[#D71920]">
@@ -700,11 +716,11 @@ export default function LoanersPage() {
                 </span>
               </div>
             ) : (
-              <div className="relative group inline-flex items-center">
+              <div className="relative group hidden sm:inline-flex items-center">
                 <select
                   value={selectedSiteId}
                   onChange={(e) => setSelectedSiteId(e.target.value)}
-                  className="bg-white border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-2 shadow-xs focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden cursor-pointer"
+                  className="bg-white border border-slate-300 text-slate-800 text-xs sm:text-sm font-semibold rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-xs focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden cursor-pointer"
                 >
                   {visibleRooftops.map((rt) => (
                     <option key={rt.siteId} value={rt.siteId}>
@@ -728,7 +744,7 @@ export default function LoanersPage() {
         }
       />
 
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {/* Dealership Rooftop Control & Filter Bar */}
         <div className="bg-white p-4 border border-slate-200/90 rounded-2xl shadow-xs flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-wrap">
@@ -779,11 +795,7 @@ export default function LoanersPage() {
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Cars</span>
               <span className="p-2 rounded-lg bg-slate-100 text-slate-700">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9C2.1 11.2 2 11.6 2 12v4c0 .6.4 1 1 1h2" />
-                  <circle cx="7" cy="17" r="2" strokeWidth="2" />
-                  <circle cx="17" cy="17" r="2" strokeWidth="2" />
-                </svg>
+                <Car className="w-5 h-5" />
               </span>
             </div>
             <div className="mt-3">
@@ -806,9 +818,7 @@ export default function LoanersPage() {
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fleet Available</span>
               <span className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
+                <CheckCircle2 className="w-5 h-5" />
               </span>
             </div>
             <div className="mt-3">
@@ -831,9 +841,7 @@ export default function LoanersPage() {
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Loans</span>
               <span className="p-2 rounded-lg bg-blue-50 text-blue-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+                <Zap className="w-5 h-5" />
               </span>
             </div>
             <div className="mt-3">
@@ -856,9 +864,7 @@ export default function LoanersPage() {
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Test Drives</span>
               <span className="p-2 rounded-lg bg-purple-50 text-purple-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
+                <Gauge className="w-5 h-5" />
               </span>
             </div>
             <div className="mt-3">
@@ -881,9 +887,7 @@ export default function LoanersPage() {
             <div className="flex items-center justify-between w-full">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Overdue Alerts</span>
               <span className="p-2 rounded-lg bg-rose-50 text-rose-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertTriangle className="w-5 h-5" />
               </span>
             </div>
             <div className="mt-3">
@@ -975,14 +979,7 @@ export default function LoanersPage() {
 
           {/* Search Box */}
           <div className="relative w-full sm:w-72">
-            <svg
-              className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by rego, customer, agreement #..."
@@ -1026,9 +1023,7 @@ export default function LoanersPage() {
                 ) : filteredAgreements.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-500">
-                      <svg className="w-10 h-10 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                       <p className="font-bold text-slate-800">No Loan Agreements Found</p>
                       <p className="text-xs text-slate-400 mt-1">Try changing rooftop filter or search terms</p>
                     </td>
@@ -1200,9 +1195,7 @@ export default function LoanersPage() {
                               className="px-2 py-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-md transition-all flex items-center gap-1 cursor-pointer"
                               title="Edit Details / Extend Return Time"
                             >
-                              <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
+                              <Edit2 className="w-3.5 h-3.5 text-blue-600" />
                               Edit
                             </button>
 
@@ -1211,9 +1204,7 @@ export default function LoanersPage() {
                               className="px-2 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md transition-all flex items-center gap-1 cursor-pointer"
                               title="View PDF"
                             >
-                              <svg className="w-3.5 h-3.5 text-[#D71920]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
+                              <FileText className="w-3.5 h-3.5 text-[#D71920]" />
                               PDF
                             </button>
 
@@ -1306,9 +1297,7 @@ export default function LoanersPage() {
 
               {/* SHA-256 Cryptographic Hash */}
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
-                <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-emerald-800">Digitally Certified & SOW Compliant</p>
                   <p className="text-[11px] font-mono text-emerald-700 truncate">
@@ -1329,9 +1318,7 @@ export default function LoanersPage() {
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D71920] hover:bg-[#B91218] text-white rounded-lg text-sm font-bold shadow-sm transition-all"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
+                  <Download className="w-4 h-4" />
                   Download Signed PDF (A4)
                 </a>
               </div>

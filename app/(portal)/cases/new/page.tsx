@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { ShieldAlert, FileText, ArrowRight, Sparkles, Check, Car, Building2, Wrench } from 'lucide-react';
 import { Header } from '../../../../components/header';
 import { useToast } from '../../../../components/toast';
 import { api } from '../../../../lib/api';
@@ -228,9 +229,7 @@ export default function NewCaseWizard() {
         <div className="p-8 max-w-2xl mx-auto w-full mt-8">
           <div className="p-8 border border-amber-200 rounded-2xl bg-white text-center space-y-6 shadow-sm">
             <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-sm">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+              <ShieldAlert className="w-8 h-8" />
             </div>
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 tracking-wide">Technician Role Required</h3>
@@ -242,11 +241,9 @@ export default function NewCaseWizard() {
               <button
                 type="button"
                 onClick={() => router.push('/cases')}
-                className="py-2.5 px-6 text-xs font-bold rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                className="w-full sm:w-auto py-2.5 px-6 text-xs font-bold rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FileText className="w-4 h-4" />
                 <span>Return to Warranty Review Queue</span>
               </button>
             </div>
@@ -535,20 +532,21 @@ export default function NewCaseWizard() {
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4">
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-all cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-all cursor-pointer text-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-8 py-3 rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+              className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#E11F26] hover:bg-[#c81a20] text-white text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
             >
-              {loading ? 'Initializing Ticket...' : 'Create Ticket & Launch Evidence Capture →'}
+              <span>{loading ? 'Initializing Ticket...' : 'Create Ticket & Launch Evidence Capture'}</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </form>

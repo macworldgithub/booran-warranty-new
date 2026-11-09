@@ -1,0 +1,71 @@
+{
+  "id": "/",
+  "name": "Booran Motors Warranty Review Portal",
+  "short_name": "Booran Warranty",
+  "description": "Workshop-first multi-brand warranty evidence capture, verification, and OEM submission portal.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0B0F17",
+  "theme_color": "#E11F26",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New RO Capture",
+      "short_name": "New Ticket",
+      "description": "Capture new workshop repair order and evidence",
+      "url": "/cases/new",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Warranty Cases",
+      "short_name": "Cases",
+      "description": "View live warranty cases and evidence gate status",
+      "url": "/cases",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Executive Dashboard",
+      "short_name": "Dashboard",
+      "description": "View OEM compliance KPIs and site performance",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Daily Hoist Inspection",
+      "short_name": "Hoists",
+      "description": "Perform safety check on workshop hoists",
+      "url": "/hoists",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
+

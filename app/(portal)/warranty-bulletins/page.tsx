@@ -64,31 +64,32 @@ export default function WarrantyBulletinsPage() {
   const inputClass = 'border border-slate-300 rounded-lg p-3 w-full';
   return <>
     <Header title="Warranty Bulletins" subtitle="Official manufacturer documents" />
-    <main className="p-6 max-w-5xl space-y-6">
-      {error && <div role="alert" className="text-red-700">{error}<button className="ml-3 underline" onClick={() => void load()}>Retry loading</button></div>}
-      {message && <p role="status" className="text-green-700">{message}</p>}
-      {loading ? <p>Loading bulletin library…</p> : <>
-        <form ref={form} onSubmit={upload} className="bg-white border rounded-xl p-5 space-y-4">
-          <h3 className="text-lg font-semibold">Upload official bulletin</h3>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl w-full mx-auto space-y-6">
+      {error && <div role="alert" className="text-red-700 bg-red-50 p-4 rounded-xl border border-red-200">{error}<button className="ml-3 underline font-bold" onClick={() => void load()}>Retry loading</button></div>}
+      {message && <p role="status" className="text-emerald-800 bg-emerald-50 p-4 rounded-xl border border-emerald-200">{message}</p>}
+      {loading ? <p className="text-xs text-slate-500">Loading bulletin library…</p> : <>
+        <form ref={form} onSubmit={upload} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
+          <h3 className="text-base font-bold text-slate-900">Upload official bulletin</h3>
           <fieldset disabled={busy || brands.length === 0} className="space-y-4">
-            <label className="block">Manufacturer<select required name="brandId" defaultValue="" className={inputClass}><option value="" disabled>Select manufacturer</option>{brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
-            <label className="block">Title<input required name="title" maxLength={200} className={inputClass} /></label>
-            <label className="block">Bulletin number<input required name="bulletinNumber" maxLength={100} className={inputClass} /></label>
-            <div className="grid sm:grid-cols-2 gap-4"><label>Issue date<input required name="issueDate" type="date" className={inputClass} /></label><label>Effective date<input required name="effectiveDate" type="date" className={inputClass} /></label></div>
-            <label className="block">PDF attachment (maximum 20 MB)<input required name="file" type="file" accept="application/pdf,.pdf" className={inputClass} /></label>
-            <button className="bg-blue-700 text-white rounded-lg px-4 py-2" type="submit">{busy ? 'Please wait…' : 'Save as draft'}</button>
+            <label className="block text-xs font-bold text-slate-700">Manufacturer<select required name="brandId" defaultValue="" className={inputClass}><option value="" disabled>Select manufacturer</option>{brands.map(brand => <option key={brand.id} value={brand.id}>{brand.name}</option>)}</select></label>
+            <label className="block text-xs font-bold text-slate-700">Title<input required name="title" maxLength={200} className={inputClass} placeholder="e.g. BYD Seal Battery Inspection Protocol" /></label>
+            <label className="block text-xs font-bold text-slate-700">Bulletin number<input required name="bulletinNumber" maxLength={100} className={inputClass} placeholder="e.g. BYD-WB-2602-02" /></label>
+            <div className="grid sm:grid-cols-2 gap-4"><label className="text-xs font-bold text-slate-700">Issue date<input required name="issueDate" type="date" className={inputClass} /></label><label className="text-xs font-bold text-slate-700">Effective date<input required name="effectiveDate" type="date" className={inputClass} /></label></div>
+            <label className="block text-xs font-bold text-slate-700">PDF attachment (maximum 20 MB)<input required name="file" type="file" accept="application/pdf,.pdf" className={inputClass} /></label>
+            <button className="bg-[#E11F26] hover:bg-[#c81a20] text-white rounded-xl px-5 py-2.5 text-xs font-bold transition-all shadow-sm cursor-pointer" type="submit">{busy ? 'Please wait…' : 'Save as draft'}</button>
           </fieldset>
         </form>
-        <section className="space-y-3"><h3 className="text-lg font-semibold">Bulletin library</h3>
-          {!items.length && <p>No bulletins uploaded yet.</p>}
-          {items.map(item => <article key={item.id} className="bg-white border rounded-xl p-5 space-y-2">
-            <p className="text-sm text-slate-600">{brands.find(brand => brand.id === item.brandId)?.name || item.brandId} · {item.status}</p>
-            <h4 className="font-semibold">{item.title}</h4><p>{item.bulletinNumber}</p>
-            <p className="text-sm">Issued {item.issueDate} · Effective {item.effectiveDate}</p>
-            <div className="flex gap-4"><button className="text-blue-700 underline" onClick={() => void openDocument(item.id)}>Open PDF</button><button disabled={busy} className="text-blue-700 underline disabled:opacity-50" onClick={() => void publish(item)}>{item.status === 'PUBLISHED' ? 'Unpublish' : 'Publish for technicians'}</button></div>
+        <section className="space-y-3"><h3 className="text-base font-bold text-slate-900">Bulletin library</h3>
+          {!items.length && <p className="text-xs text-slate-500">No bulletins uploaded yet.</p>}
+          {items.map(item => <article key={item.id} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-2 shadow-xs">
+            <p className="text-xs font-bold text-slate-500">{brands.find(brand => brand.id === item.brandId)?.name || item.brandId} · <span className="uppercase font-mono text-[#E11F26]">{item.status}</span></p>
+            <h4 className="font-extrabold text-slate-900">{item.title}</h4>
+            <p className="font-mono text-xs text-slate-700">{item.bulletinNumber}</p>
+            <p className="text-xs text-slate-500">Issued {item.issueDate} · Effective {item.effectiveDate}</p>
+            <div className="flex gap-4 pt-2"><button className="text-xs font-bold text-[#E11F26] hover:underline" onClick={() => void openDocument(item.id)}>Open PDF →</button><button disabled={busy} className="text-xs font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50" onClick={() => void publish(item)}>{item.status === 'PUBLISHED' ? 'Unpublish' : 'Publish for technicians'}</button></div>
           </article>)}
         </section>
       </>}
-    </main>
+    </div>
   </>;
 }

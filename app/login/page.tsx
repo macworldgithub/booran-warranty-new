@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserRole } from '@/lib/types';
 import { api } from '@/lib/api';
+import { ShieldCheck, RotateCw, ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Wrench, KeyRound, Mail, User } from 'lucide-react';
 import { OtpInput } from '@/components/auth/otp-input';
+import { PwaInstallBanner } from '@/components/pwa-install-banner';
+import { PwaRegister } from '@/components/pwa-register';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -430,9 +433,7 @@ export default function LoginPage() {
               <div className="space-y-4 animate-in fade-in zoom-in-95 duration-150">
                 <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 text-center">
                   <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
+                    <ShieldCheck className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-black text-slate-900">Verify Your Work Email</h3>
                   <p className="text-xs text-slate-600 mt-1">
@@ -460,9 +461,10 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => setIsOtpStep(false)}
-                      className="text-slate-500 hover:text-slate-700 font-semibold cursor-pointer"
+                      className="text-slate-500 hover:text-slate-700 font-semibold cursor-pointer flex items-center gap-1"
                     >
-                      ← Edit Details
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Edit Details</span>
                     </button>
 
                     {regCountdown > 0 ? (
@@ -474,9 +476,10 @@ export default function LoginPage() {
                         type="button"
                         disabled={loading}
                         onClick={handleResendRegistrationOtp}
-                        className="text-[#E11F26] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                        className="text-[#E11F26] font-bold hover:underline cursor-pointer disabled:opacity-50 flex items-center gap-1"
                       >
-                        Resend verification code
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Resend verification code</span>
                       </button>
                     )}
                   </div>
@@ -500,9 +503,7 @@ export default function LoginPage() {
                         className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
                       />
                       <div className="absolute right-3 top-2.5 text-slate-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
+                        <User className="w-4 h-4" />
                       </div>
                     </div>
                   </div>
@@ -523,9 +524,7 @@ export default function LoginPage() {
                       className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"
                     />
                     <div className="absolute right-3 top-2.5 text-slate-400">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
+                      <Mail className="w-4 h-4" />
                     </div>
                   </div>
                 </div>
@@ -595,14 +594,9 @@ export default function LoginPage() {
                       className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       {showPassword ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                        </svg>
+                        <EyeOff className="w-4 h-4" />
                       ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <Eye className="w-4 h-4" />
                       )}
                     </button>
                   </div>
@@ -647,14 +641,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || (authMode === 'signup' && isOtpStep && otpCode.length !== 6)}
-              className="w-full bg-[#E11F26] hover:bg-[#c9181e] disabled:opacity-50 text-white font-bold text-sm py-3 rounded-2xl transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              className="w-full bg-[#E11F26] hover:bg-[#c9181e] disabled:opacity-50 text-white font-bold text-sm py-3 rounded-2xl transition-all shadow-md shadow-red-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2 active:scale-[0.99]"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                   <span>Processing...</span>
                 </>
               ) : (
@@ -666,9 +657,7 @@ export default function LoginPage() {
                       ? 'Verify Code & Create Account'
                       : 'Send Verification Code'}
                   </span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
@@ -693,9 +682,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-red-50 text-[#E11F26] border border-red-200 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                  </svg>
+                  <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Reset Password</h3>
@@ -764,10 +751,7 @@ export default function LoginPage() {
                   >
                     {forgotLoading ? (
                       <>
-                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         <span>Sending Code...</span>
                       </>
                     ) : (
@@ -837,10 +821,7 @@ export default function LoginPage() {
                   >
                     {forgotLoading ? (
                       <>
-                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         <span>Verifying...</span>
                       </>
                     ) : (
@@ -885,14 +866,9 @@ export default function LoginPage() {
                       className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       {showForgotNewPassword ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                        </svg>
+                        <EyeOff className="w-4 h-4" />
                       ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <Eye className="w-4 h-4" />
                       )}
                     </button>
                   </div>
@@ -917,14 +893,9 @@ export default function LoginPage() {
                       className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       {showForgotConfirmPassword ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                        </svg>
+                        <EyeOff className="w-4 h-4" />
                       ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <Eye className="w-4 h-4" />
                       )}
                     </button>
                   </div>
@@ -945,10 +916,7 @@ export default function LoginPage() {
                   >
                     {forgotLoading ? (
                       <>
-                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         <span>Saving Password...</span>
                       </>
                     ) : (
@@ -961,6 +929,9 @@ export default function LoginPage() {
           </div>
         </div>
       )}
+      {/* PWA Mobile Support */}
+      <PwaInstallBanner />
+      <PwaRegister />
     </div>
   );
 }

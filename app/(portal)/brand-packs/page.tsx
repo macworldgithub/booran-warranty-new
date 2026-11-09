@@ -9,6 +9,7 @@ import { AddBrandRuleModal } from '../../../components/add-brand-rule-modal';
 import { useToast } from '../../../components/toast';
 import { api, resolveMediaUrl } from '../../../lib/api';
 import { Brand, BrandPack, BrandPackRule, FaultCategory, WarrantyCase } from '../../../lib/types';
+import { Package, CheckCircle2, FileEdit, AlertTriangle, Search, Plus, Play, Sparkles, Check, X, ChevronRight, Layers, HelpCircle, ShieldCheck } from 'lucide-react';
 
 const FAULT_CATEGORIES: FaultCategory[] = [
   'Battery and high-voltage (HV) components',
@@ -627,56 +628,48 @@ export default function BrandPacksPage() {
           </form>
         </Modal>
         {/* Top Info Banner / Quick Stats - Clean White Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800">
-              <svg className="w-5 h-5 text-[#E11F26]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 shrink-0">
+              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-[#E11F26]" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium">Configured OEM Packs</p>
-              <p className="text-xl font-extrabold text-slate-900">{packs.length}</p>
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">Configured OEM Packs</p>
+              <p className="text-lg sm:text-xl font-extrabold text-slate-900">{packs.length}</p>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium">Published Live Packs</p>
-              <p className="text-xl font-extrabold text-emerald-600">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">Published Live Packs</p>
+              <p className="text-lg sm:text-xl font-extrabold text-emerald-600">
                 {packs.filter((p) => p.status === 'PUBLISHED').length}
               </p>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <FileEdit className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium">Draft Staging Packs</p>
-              <p className="text-xl font-extrabold text-amber-600">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">Draft Staging Packs</p>
+              <p className="text-lg sm:text-xl font-extrabold text-amber-600">
                 {packs.filter((p) => p.status === 'DRAFT').length}
               </p>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26]">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26] shrink-0">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <p className="text-xs text-slate-500 font-medium">Active Flagged Cases</p>
-              <p className="text-xl font-extrabold text-[#E11F26]">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">Active Flagged Cases</p>
+              <p className="text-lg sm:text-xl font-extrabold text-[#E11F26]">
                 {cases.filter((c) => c.status === 'Flagged').length}
               </p>
             </div>

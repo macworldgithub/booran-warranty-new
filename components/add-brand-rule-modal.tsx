@@ -414,7 +414,7 @@ export function AddBrandRuleModal({
                   value={selectedPackId}
                   onChange={(e) => setSelectedPackId(e.target.value)}
                   disabled={loadingPacks}
-                  className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-semibold focus:outline-none focus:border-[#E11F26] min-w-[260px] shadow-xs"
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-semibold focus:outline-none focus:border-[#E11F26] w-full sm:w-auto min-w-0 sm:min-w-[260px] shadow-xs"
                 >
                   {packs.map((p) => (
                     <option key={p.id} value={p.id}>
