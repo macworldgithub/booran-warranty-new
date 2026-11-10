@@ -8,6 +8,13 @@ import { useToast } from '../../../../components/toast';
 import { api } from '../../../../lib/api';
 import { FaultCategory, Site, Brand } from '../../../../lib/types';
 
+function readAuthorizedSiteIds(user: { authorizedSiteIds?: unknown; authorizedSitesId?: unknown }): string[] {
+  const siteIds = Array.isArray(user.authorizedSiteIds)
+    ? user.authorizedSiteIds
+    : user.authorizedSitesId;
+  return Array.isArray(siteIds) ? siteIds.filter((siteId): siteId is string => typeof siteId === 'string') : [];
+}
+
 export default function NewCaseWizard() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -17,6 +24,7 @@ export default function NewCaseWizard() {
   const [loading, setLoading] = useState(false);
   const [vinDecoding, setVinDecoding] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [authorizedSiteIds, setAuthorizedSiteIds] = useState<string[]>([]);
   const [roleChecked, setRoleChecked] = useState(false);
 
   // Form State
@@ -41,16 +49,33 @@ export default function NewCaseWizard() {
   const [evaluatedRules, setEvaluatedRules] = useState<any>(null);
 
   useEffect(() => {
+    let initialUserSiteId = '';
+    let initialUserRole: string | null = null;
+    let initialAuthorizedSiteIds: string[] = [];
     if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('booran_user') || localStorage.getItem('booran_user_profile');
-      if (userStr) {
+      const storedUsers: Record<string, unknown>[] = [];
+      for (const userStr of [localStorage.getItem('booran_user_profile'), localStorage.getItem('booran_user')]) {
+        if (!userStr) continue;
         try {
           const user = JSON.parse(userStr);
-          setCurrentUserRole(user.role || '');
-          if (user.name) setTechnicianName(user.name);
-          if (user.defaultSiteId) setSiteId(user.defaultSiteId);
+          if (user && typeof user === 'object') storedUsers.push(user);
         } catch {
           // ignore
+        }
+      }
+
+      const storedUser = storedUsers.find((user) => readAuthorizedSiteIds(user).length > 0) || storedUsers[0];
+      if (storedUser) {
+        initialUserRole = typeof storedUser.role === 'string' ? storedUser.role : '';
+        setCurrentUserRole(initialUserRole);
+        if (typeof storedUser.name === 'string') setTechnicianName(storedUser.name);
+        if (typeof storedUser.defaultSiteId === 'string') {
+          setSiteId(storedUser.defaultSiteId);
+          initialUserSiteId = storedUser.defaultSiteId;
+        }
+        initialAuthorizedSiteIds = readAuthorizedSiteIds(storedUser);
+        if (initialAuthorizedSiteIds.length > 0) {
+          setAuthorizedSiteIds(initialAuthorizedSiteIds);
         }
       }
       setRoleChecked(true);
@@ -58,17 +83,48 @@ export default function NewCaseWizard() {
 
     async function init() {
       try {
-        const [sitesRes, brandsRes] = await Promise.all([api.getSites(), api.getBrands()]);
+        const [sitesRes, brandsRes, meRes] = await Promise.all([
+          api.getSites(),
+          api.getBrands(),
+          api.getMe().catch(() => null),
+        ]);
         setSites(sitesRes);
         setBrands(brandsRes);
         
-        let initialSiteId = siteId;
-        if (!initialSiteId && sitesRes.length > 0) {
-          initialSiteId = sitesRes[0].id;
-          setSiteId(initialSiteId);
+        let activeRole = initialUserRole;
+        let activeAuthorizedSiteIds = initialAuthorizedSiteIds;
+        let preferredSiteId = initialUserSiteId || siteId;
+
+        if (meRes) {
+          if (meRes.role) {
+            setCurrentUserRole(meRes.role);
+            activeRole = meRes.role;
+          }
+          if (meRes.name) setTechnicianName(meRes.name);
+          const meAuthorizedSiteIds = readAuthorizedSiteIds(meRes);
+          if (meAuthorizedSiteIds.length > 0) {
+            setAuthorizedSiteIds(meAuthorizedSiteIds);
+            activeAuthorizedSiteIds = meAuthorizedSiteIds;
+          }
+          if (meRes.defaultSiteId) {
+            preferredSiteId = meRes.defaultSiteId;
+          }
         }
 
-        const activeSite = sitesRes.find((s) => s.id === initialSiteId) || sitesRes[0];
+        // When user is a technician, restrict available sites strictly to authorizedSiteIds
+        const filteredSites = activeRole === 'TECHNICIAN'
+          ? sitesRes.filter((s) => activeAuthorizedSiteIds.includes(s.id))
+          : sitesRes;
+
+        const validSites = filteredSites;
+
+        let initialSiteId = preferredSiteId;
+        if (!initialSiteId || !validSites.some((s) => s.id === initialSiteId)) {
+          initialSiteId = validSites[0]?.id || '';
+        }
+        setSiteId(initialSiteId);
+
+        const activeSite = validSites.find((s) => s.id === initialSiteId) || validSites[0];
         if (activeSite) {
           const authIds = activeSite.authorizedBrandIds || [];
           const matchedBrands = brandsRes.filter((b) => authIds.includes(b.id));
@@ -85,8 +141,29 @@ export default function NewCaseWizard() {
     init();
   }, []);
 
+  // Filtered sites: when user is a technician, restrict strictly to their authorizedSiteIds
+  const availableSites = useMemo(() => {
+    if (currentUserRole === 'TECHNICIAN') {
+      return sites.filter((s) => authorizedSiteIds.includes(s.id));
+    }
+    return sites;
+  }, [sites, currentUserRole, authorizedSiteIds]);
+
+  // Ensure selected siteId is valid within availableSites
+  useEffect(() => {
+    if (availableSites.length > 0) {
+      const isCurrentSiteValid = availableSites.some((s) => s.id === siteId);
+      if (!isCurrentSiteValid) {
+        setSiteId(availableSites[0].id);
+      }
+    }
+  }, [availableSites, siteId]);
+
   // Currently selected site
-  const selectedSite = useMemo(() => sites.find((s) => s.id === siteId), [sites, siteId]);
+  const selectedSite = useMemo(
+    () => availableSites.find((s) => s.id === siteId) || availableSites[0],
+    [availableSites, siteId]
+  );
 
   // Derived: only brands authorized for the selected dealership site
   const availableBrands = useMemo(() => {
@@ -170,13 +247,17 @@ export default function NewCaseWizard() {
       showToast('Permission denied: Only technicians are authorized to raise warranty tickets.', 'error');
       return;
     }
+    if (!siteId || !availableSites.some((site) => site.id === siteId)) {
+      showToast('No authorized dealership site is available for your account.', 'error');
+      return;
+    }
 
     setLoading(true);
 
     try {
       const created = await api.createCase({
-        siteId: siteId || (sites[0]?.id || 'site_cranbourne_byd'),
-        brandId: brandId || (brands[0]?.id || 'brand_byd'),
+        siteId: siteId || (availableSites[0]?.id || 'site_cranbourne_byd'),
+        brandId: brandId || (availableBrands[0]?.id || 'brand_byd'),
         roNumber,
         vin,
         odometer: Number(odometer),
@@ -270,13 +351,20 @@ export default function NewCaseWizard() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Dealership Site</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">Dealership Site</label>
+                  {currentUserRole === 'TECHNICIAN' && authorizedSiteIds.length > 0 && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      Authorized Sites ({availableSites.length})
+                    </span>
+                  )}
+                </div>
                 <select
                   value={siteId}
                   onChange={(e) => {
                     const newSiteId = e.target.value;
                     setSiteId(newSiteId);
-                    const newSite = sites.find((s) => s.id === newSiteId);
+                    const newSite = availableSites.find((s) => s.id === newSiteId);
                     if (newSite) {
                       const authIds = newSite.authorizedBrandIds || [];
                       const siteBrands = brands.filter((b) => authIds.includes(b.id));
@@ -287,7 +375,7 @@ export default function NewCaseWizard() {
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-[#E11F26] focus:outline-none transition-all"
                 >
-                  {sites.map((s) => (
+                  {availableSites.map((s) => (
                     <option key={s.id} value={s.id}>{s.name} ({s.roPrefix})</option>
                   ))}
                 </select>

@@ -213,6 +213,13 @@ export default function LoginPage() {
         throw new Error('Authentication failed. Please check your credentials and try again.');
       }
 
+      // Frontend role guard: ensure the returned user role matches the selected role
+      if (response.user.role !== selectedRole) {
+        throw new Error(
+          `This account is registered as ${response.user.role}. Please select the correct role and try again.`
+        );
+      }
+
       saveAuthSession(response.user, response.accessToken);
       router.replace(response.user.role === 'TECHNICIAN' ? '/cases/new' : '/dashboard');
     } catch (err: any) {
@@ -381,7 +388,7 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-2">
                 Select Workspace Role
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => handleRoleChange('ADMIN')}
@@ -422,6 +429,25 @@ export default function LoginPage() {
                   <p className="text-[11px] text-slate-700">Assigned-site claim review</p>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('TECHNICIAN')}
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                    selectedRole === 'TECHNICIAN'
+                      ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        selectedRole === 'TECHNICIAN' ? 'bg-[#E11F26]' : 'bg-slate-300'
+                      }`}
+                    />
+                    <span className="font-bold text-xs text-slate-900">Technician</span>
+                  </div>
+                  <p className="text-[11px] text-slate-700">Raise & submit warranty claims</p>
+                </button>
               </div>
             </div>
           )}
@@ -509,7 +535,6 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                {/* Email Address */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                     Work Email Address
@@ -518,7 +543,13 @@ export default function LoginPage() {
                     <input
                       type="email"
                       required
-                      placeholder={selectedRole === 'ADMIN' ? 'admin@booran.com.au' : 'clerk@booran.com.au'}
+                      placeholder={
+                        selectedRole === 'ADMIN' 
+                          ? 'admin@booran.com.au' 
+                          : selectedRole === 'TECHNICIAN'
+                          ? 'technician@booran.com.au'
+                          : 'clerk@booran.com.au'
+                      }
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"

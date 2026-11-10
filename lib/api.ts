@@ -126,10 +126,9 @@ export const api = {
       const baseUrls = [BASE_URL, configuredBaseUrl].filter(
         (url, index, arr) => arr.indexOf(url) === index
       );
-      const attempts = [
-        payload,
-        { email: payload.email, password: payload.password },
-      ];
+      // Only send the role-bearing payload — never fall back to a role-less
+      // attempt, which would bypass the backend's role-enforcement check.
+      const attempts = [payload];
 
       let lastError = "Authentication failed. Please check your credentials.";
 

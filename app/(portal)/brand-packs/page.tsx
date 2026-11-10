@@ -1691,7 +1691,7 @@ export default function BrandPacksPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] text-slate-700 font-bold mb-1">
-                    Dealership Rooftop & Site
+                    Dealership Rooftop & Site 
                   </label>
                   <select
                     value={simSite}
