@@ -587,9 +587,7 @@ export default function LoginPage() {
                     </label>
                     {authMode === 'signin' && (
                       <div className="flex items-center gap-3">
-                        <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
-                          Default: Booran2026!
-                        </span>
+                  
                         <button
                           type="button"
                           onClick={() => {
@@ -760,7 +758,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     required
-                    placeholder="e.g. admin@booran.com.au"
+                    placeholder="e.g. xyz@booran.com.au"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all font-mono"
