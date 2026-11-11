@@ -345,12 +345,12 @@ export default function LoginPage() {
       {/* Main Container */}
       <div className="w-full max-w-lg z-10">
         {/* Brand Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-50 border border-red-200 text-[#E11F26] text-xs font-bold uppercase tracking-widest mb-4">
+        <div className="text-center mb-3">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-50 border border-red-200 text-[#E11F26] text-xs font-bold uppercase tracking-widest mb-2">
             <span className="w-2 h-2 rounded-full bg-[#E11F26] animate-ping" />
             BOORAN MOTOR GROUP · AFTERSALES
           </div>
-          <div className="flex justify-center mb-3">
+          <div className="flex justify-center mb-1.5">
             <img
               src="/booran-motors-transparent.png"
               alt="Booran Motors"
@@ -360,7 +360,7 @@ export default function LoginPage() {
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
             Warranty Claim Portal
           </h1>
-          <p className="text-xs text-slate-700 mt-1 max-w-xs mx-auto">
+          <p className="text-xs text-slate-700 mt-0.5 max-w-xs mx-auto">
             Audit-Proof Evidence Collection & Compliance Engine
           </p>
         </div>
@@ -392,61 +392,61 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => handleRoleChange('ADMIN')}
-                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col ${
                     selectedRole === 'ADMIN'
                       ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-start gap-1.5 mb-1 min-h-[2rem]">
                     <span
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2 h-2 rounded-full shrink-0 mt-1 ${
                         selectedRole === 'ADMIN' ? 'bg-[#E11F26]' : 'bg-slate-300'
                       }`}
                     />
-                    <span className="font-bold text-xs text-slate-900">Site Admin</span>
+                    <span className="font-bold text-xs text-slate-900 leading-tight">Site Admin</span>
                   </div>
-                  <p className="text-[11px] text-slate-700">Full audit, packs, sites & review</p>
+                  <p className="text-[11px] text-slate-700 leading-tight">Full audit, packs, sites & review</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleRoleChange('CLERK')}
-                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col ${
                     selectedRole === 'CLERK'
                       ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-start gap-1.5 mb-1 min-h-[2rem]">
                     <span
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2 h-2 rounded-full shrink-0 mt-1 ${
                         selectedRole === 'CLERK' ? 'bg-[#E11F26]' : 'bg-slate-300'
                       }`}
                     />
-                    <span className="font-bold text-xs text-slate-900">Warranty Clerk</span>
+                    <span className="font-bold text-xs text-slate-900 leading-tight">Warranty Clerk</span>
                   </div>
-                  <p className="text-[11px] text-slate-700">Assigned-site claim review</p>
+                  <p className="text-[11px] text-slate-700 leading-tight mt-auto">Assigned-site claim review</p>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleRoleChange('TECHNICIAN')}
-                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                  className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col ${
                     selectedRole === 'TECHNICIAN'
                       ? 'border-[#E11F26] bg-red-50/50 ring-1 ring-[#E11F26]'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-start gap-1.5 mb-1 min-h-[2rem]">
                     <span
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2 h-2 rounded-full shrink-0 mt-1 ${
                         selectedRole === 'TECHNICIAN' ? 'bg-[#E11F26]' : 'bg-slate-300'
                       }`}
                     />
-                    <span className="font-bold text-xs text-slate-900">Technician</span>
+                    <span className="font-bold text-xs text-slate-900 leading-tight">Technician</span>
                   </div>
-                  <p className="text-[11px] text-slate-700">Raise & submit warranty claims</p>
+                  <p className="text-[11px] text-slate-700 leading-tight mt-auto">Raise & submit warranty claims</p>
                 </button>
               </div>
             </div>

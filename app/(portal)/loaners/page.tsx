@@ -194,6 +194,7 @@ export default function LoanersPage() {
             fullName: site.fullName || site.name || `Booran ${site.label}`,
           })),
         ];
+        
         setRooftops(nextRooftops);
         const assignedLabel = nextRooftops.find((r) => r.siteId === defaultSiteId)?.label || defaultSiteId;
         setTechnicianSiteName(assignedLabel);
