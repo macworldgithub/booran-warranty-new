@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -25,6 +25,8 @@ export default function CasesPage() {
   const searchParams = useSearchParams();
   const [cases, setCases] = useState<WarrantyCase[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const latestRequest = useRef(0);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [meta, setMeta] = useState<PaginationMeta>({
@@ -102,7 +104,9 @@ export default function CasesPage() {
   }, [searchQuery]);
 
   async function loadCases(p = page, l = limit, search = searchQuery) {
+    const request = ++latestRequest.current;
     setLoading(true);
+    setLoadError('');
     try {
       const params: any = {
         page: p,
@@ -121,11 +125,16 @@ export default function CasesPage() {
 
       params.limit = 100; // fetch up to 100 cases per load
       const result = await api.getWarrantyCases(params);
-      setCases(Array.isArray(result) ? result : (result?.data ?? []));
+      if (request === latestRequest.current) {
+        setCases(Array.isArray(result) ? result : (result?.data ?? []));
+      }
     } catch (err) {
-      console.error('Failed to load cases:', err);
+      if (request === latestRequest.current) {
+        setCases([]);
+        setLoadError(err instanceof Error ? err.message : 'Try refreshing the page.');
+      }
     } finally {
-      setLoading(false);
+      if (request === latestRequest.current) setLoading(false);
     }
   }
 
@@ -395,6 +404,11 @@ export default function CasesPage() {
               <div className="w-8 h-8 border-2 border-slate-200 border-t-[#E11F26] rounded-full animate-spin" />
               <p className="text-xs text-slate-500">Loading warranty cases...</p>
             </div>
+          ) : loadError ? (
+            <div className="space-y-3 p-10 text-center">
+              <p role="alert" className="text-sm text-red-700">Unable to load warranty cases: {loadError}</p>
+              <button type="button" className="cursor-pointer text-sm font-semibold text-blue-700 underline" onClick={() => void loadCases()}>Retry</button>
+            </div>
           ) : filteredCases.length === 0 ? (
             <div className="p-16 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
@@ -403,7 +417,7 @@ export default function CasesPage() {
                 </svg>
               </div>
               <p className="text-sm font-semibold text-slate-900">No warranty cases found</p>
-              <p className="text-xs text-slate-500">Try clearing your search filters or start a new repair ticket.</p>
+              <p className="text-xs text-slate-500">{userRole === 'CLERK' ? 'No cases match the selected rooftop and filters.' : 'Try clearing your search filters or start a new repair ticket.'}</p>
             </div>
           ) : (
             <>

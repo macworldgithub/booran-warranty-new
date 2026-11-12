@@ -7,12 +7,14 @@ import { Site, UserProfile } from '../lib/types';
 export const ALL_ASSIGNED_SITES = 'ALL';
 
 type ClerkSiteContextValue = {
+  isClerk: boolean;
   activeSiteId: string;
   assignedSites: Site[];
   setActiveSiteId: (siteId: string) => void;
 };
 
 const ClerkSiteContext = createContext<ClerkSiteContextValue>({
+  isClerk: false,
   activeSiteId: ALL_ASSIGNED_SITES,
   assignedSites: [],
   setActiveSiteId: () => undefined,
@@ -73,7 +75,7 @@ export function ClerkSiteProvider({
   };
 
   return (
-    <ClerkSiteContext.Provider value={{ activeSiteId, assignedSites, setActiveSiteId }}>
+    <ClerkSiteContext.Provider value={{ isClerk: user.role === 'CLERK', activeSiteId, assignedSites, setActiveSiteId }}>
       {children}
     </ClerkSiteContext.Provider>
   );

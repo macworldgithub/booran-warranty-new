@@ -151,10 +151,9 @@ export function Sidebar({
   const clerkNavItems = adminNavItems.filter((item) =>
     ['/dashboard', '/cases', '/hoists', '/loaners', '/test-drives'].includes(item.href)
   );
-
   if (isAdmin) {
     adminNavItems.push({
-      label: 'Technician Invitations',
+      label: 'Staff Invitations',
       href: '/invitations',
       icon: Mail,
     });

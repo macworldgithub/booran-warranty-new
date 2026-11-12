@@ -36,6 +36,7 @@ export type FlagReasonCode =
 export type MediaType = 'image' | 'video' | 'document' | 'audio';
 
 export interface UserProfile {
+  username?: string;
   id: string;
   name: string;
   email: string;

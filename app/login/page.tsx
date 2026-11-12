@@ -200,12 +200,12 @@ export default function LoginPage() {
     // Sign In Mode
     setLoading(true);
     try {
-      if (!email.trim()) throw new Error('Please enter your work email address.');
+      if (!email.trim()) throw new Error('Please enter your username or work email address.');
       if (!password.trim()) throw new Error('Please enter your password.');
 
       const response = await api.auth.login({
         email: email.trim().toLowerCase(),
-        password: password.trim(),
+        password,
         role: selectedRole,
       });
 
@@ -537,19 +537,14 @@ export default function LoginPage() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Work Email Address
+                    {authMode === 'signup' ? 'Work Email Address' : 'Username or Email'}
                   </label>
                   <div className="relative">
                     <input
-                      type="email"
+                      type={authMode === 'signup' ? 'email' : 'text'}
+                      autoComplete={authMode === 'signup' ? 'email' : 'username'}
                       required
-                      placeholder={
-                        selectedRole === 'ADMIN' 
-                          ? 'admin@booran.com.au' 
-                          : selectedRole === 'TECHNICIAN'
-                          ? 'technician@booran.com.au'
-                          : 'clerk@booran.com.au'
-                      }
+                      placeholder={authMode === 'signup' ? 'name@booran.com.au' : 'Username or email'}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#E11F26] focus:ring-1 focus:ring-[#E11F26] transition-all"

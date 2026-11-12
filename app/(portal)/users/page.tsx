@@ -7,10 +7,26 @@ import { Header } from '../../../components/header';
 import { Pagination } from '../../../components/pagination';
 import { api } from '../../../lib/api';
 import { Site, UserProfile, UserRole } from '../../../lib/types';
+import { StaffQrCard } from '@/components/staff-qr-card';
+import { staffQrRequest, type StaffQrLink } from '@/lib/staff-qr';
 
 export default function UsersPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [resetUser, setResetUser] = useState<UserProfile | null>(null);
+  const [resetLink, setResetLink] = useState<StaffQrLink | null>(null);
+  const [resetError, setResetError] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
+
+  async function generateResetQr() {
+    if (!resetUser) return;
+    setResetBusy(true);
+    setResetError('');
+    try {
+      setResetLink(await staffQrRequest<StaffQrLink>(`users/${encodeURIComponent(resetUser.id)}/reset-qr`, 'POST', {}));
+    } catch (err) { setResetError(err instanceof Error ? err.message : 'Could not create reset QR.'); }
+    finally { setResetBusy(false); }
+  }
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +119,7 @@ export default function UsersPage() {
 
       const q = searchQuery.toLowerCase().trim();
       const matchName = u.name?.toLowerCase().includes(q);
-      const matchEmail = u.email?.toLowerCase().includes(q);
+      const matchEmail = (u.username || u.email)?.toLowerCase().includes(q);
       const matchRole = u.role?.toLowerCase().replace(/_/g, ' ').includes(q);
       const matchSite = u.defaultSiteId?.toLowerCase().includes(q);
 
@@ -439,7 +455,7 @@ export default function UsersPage() {
                         <span className="font-bold text-slate-900">{u.name}</span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-700 font-mono">{u.email}</td>
+                    <td className="py-3.5 px-4 text-slate-700 font-mono">{u.username || u.email}</td>
                     <td className="py-3.5 px-4">
                       <span
                         className={`px-2.5 py-0.5 rounded-full border font-semibold text-[11px] inline-flex items-center gap-1.5 ${
@@ -475,6 +491,9 @@ export default function UsersPage() {
                         </span>
                       ) : (
                         <div className="inline-flex items-center gap-1">
+                          {(u.role === 'TECHNICIAN' || u.role === 'CLERK') && <button type="button"
+                            onClick={() => { setResetUser(u); setResetLink(null); setResetError(''); }}
+                            className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50">Reset QR</button>}
                           <button
                             type="button"
                             onClick={() => openEditModal(u)}
@@ -520,6 +539,18 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {resetUser && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+        <section role="dialog" aria-modal="true" aria-labelledby="reset-qr-title" className="max-h-[90vh] w-full max-w-md space-y-4 overflow-auto rounded-2xl bg-white p-6">
+          <h2 id="reset-qr-title" className="text-lg font-bold">Password reset for {resetUser.name}</h2>
+          <p className="text-sm text-slate-600">Verify the employee’s identity before sharing the QR. Each new link replaces the previous link and expires after 15 minutes.</p>
+          {resetError && <p role="alert" className="text-sm text-red-700">{resetError}</p>}
+          {resetLink && <StaffQrCard key={resetLink.token} link={resetLink} kind="reset" />}
+          <div className="flex flex-wrap justify-end gap-3">
+            <button type="button" disabled={resetBusy} onClick={() => { setResetUser(null); setResetLink(null); }} className="cursor-pointer rounded-xl border px-4 py-2 text-sm">Close</button>
+            <button type="button" disabled={resetBusy} onClick={() => void generateResetQr()} className="cursor-pointer rounded-xl bg-[#E11F26] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{resetBusy ? 'Generating…' : resetLink ? 'Replace Reset QR' : 'Generate Reset QR'}</button>
+          </div>
+        </section>
+      </div>}
       {/* Add / Edit User Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
@@ -579,13 +610,14 @@ export default function UsersPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Work Email Address <span className="text-[#E11F26]">*</span>
+                  {editingUser?.username ? 'Username' : <>Work Email Address <span className="text-[#E11F26]">*</span></>}
                 </label>
                 <input
-                  type="email"
+                  type={editingUser?.username ? 'text' : 'email'}
+                  readOnly={!!editingUser?.username}
                   required
                   placeholder="e.g. sarah.j@booran.com.au"
-                  value={formData.email}
+                  value={editingUser?.username || formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="input-field text-xs w-full font-mono"
                 />

@@ -4,6 +4,7 @@ import { Header } from '@/components/header';
 import { api } from '@/lib/api';
 import { Site } from '@/lib/types';
 import { Invitation, invitationsApi } from '@/lib/invitations-api';
+import { StaffQrInvitations } from '@/components/staff-qr-invitations';
 
 export default function InvitationsPage() {
   const [items, setItems] = useState<Invitation[]>([]);
@@ -47,8 +48,9 @@ export default function InvitationsPage() {
   const visible = items.filter(item => `${item.name} ${item.email}`.toLowerCase().includes(search.trim().toLowerCase()));
   const input = 'w-full border border-slate-300 rounded-xl bg-white p-3 text-sm';
   return <>
-    <Header title="Technician Invitations" subtitle="Invite technicians to set up their account" />
+    <Header title="Staff Invitations" subtitle="Invite technicians and warranty clerks" />
     <div className="p-4 sm:p-6 max-w-6xl w-full mx-auto space-y-6">
+      <StaffQrInvitations sites={sites} />
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
       {message && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{message}</p>}
       <form onSubmit={invite} className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4">

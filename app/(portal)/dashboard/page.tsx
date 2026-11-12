@@ -289,58 +289,10 @@ function FlaggedCasesModal({
   );
 }
 
-const DEFAULT_KPIS: DashboardKPIs = {
-  totalCasesOpened: 33,
-  submittedSameDayPercent: 100,
-  activeFlaggedCases: 17,
-  avgWorkshopToSubmittedHours: 0.3,
-  activeRooftopsCount: 4,
-  activeBrandsCount: 8,
-};
-
-const DEFAULT_SITES: SitePerformance[] = [
-  {
-    siteId: 'site_cranbourne_byd',
-    siteName: 'Booran BYD Cranbourne',
-    roPrefix: 'CR-',
-    totalCases: 14,
-    firstTimePassRate: 71.4,
-    flaggedCount: 3,
-    avgHoursToSubmit: 0.2,
-  },
-  {
-    siteId: 'site_dandenong_multi',
-    siteName: 'Booran Dandenong Multi-Franchise',
-    roPrefix: 'DAN-',
-    totalCases: 7,
-    firstTimePassRate: 42.9,
-    flaggedCount: 4,
-    avgHoursToSubmit: 0.7,
-  },
-  {
-    siteId: 'site_cheltenham_mg',
-    siteName: 'Booran MG & Chery Cheltenham',
-    roPrefix: 'CHEL-',
-    totalCases: 8,
-    firstTimePassRate: 25.0,
-    flaggedCount: 6,
-    avgHoursToSubmit: 2.8,
-  },
-  {
-    siteId: 'site_berwick_toyota_ford',
-    siteName: 'Booran Berwick Commercials',
-    roPrefix: 'BER-',
-    totalCases: 4,
-    firstTimePassRate: 0.0,
-    flaggedCount: 4,
-    avgHoursToSubmit: 2.8,
-  },
-];
-
 const SITES_PER_PAGE = 10;
 
 const DEFAULT_SITES_META = {
-  total: DEFAULT_SITES.length,
+  total: 0,
   page: 1,
   limit: SITES_PER_PAGE,
   totalPages: 1,
@@ -349,15 +301,16 @@ const DEFAULT_SITES_META = {
 };
 
 export default function DashboardPage() {
-  const { activeSiteId } = useClerkSite();
-  const [kpis, setKpis] = useState<DashboardKPIs>(DEFAULT_KPIS);
+  const { activeSiteId, assignedSites, isClerk } = useClerkSite();
+  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [flagReasons, setFlagReasons] = useState<FlagReasonStat[]>([]);
-  const [sites, setSites] = useState<SitePerformance[]>(DEFAULT_SITES);
+  const [sites, setSites] = useState<SitePerformance[]>([]);
   const [sitesPage, setSitesPage] = useState(1);
   const [sitesSearch, setSitesSearch] = useState('');
   const [sitesMeta, setSitesMeta] = useState(DEFAULT_SITES_META);
   const [brandPacks, setBrandPacks] = useState<BrandPack[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Flagged modal state
   const [flaggedModalOpen, setFlaggedModalOpen] = useState(false);
@@ -371,56 +324,39 @@ export default function DashboardPage() {
   const [ruleModalMode, setRuleModalMode] = useState<'MANUAL' | 'IMPORT'>('MANUAL');
 
   useEffect(() => {
+    let cancelled = false;
     async function loadData() {
       setLoading(true);
+      setLoadError('');
+      setKpis(null);
+      setSites([]);
+      setFlagReasons([]);
+      setSitesMeta(DEFAULT_SITES_META);
+      const siteId = activeSiteId === ALL_ASSIGNED_SITES ? undefined : activeSiteId;
       try {
-        const siteId = activeSiteId === ALL_ASSIGNED_SITES ? undefined : activeSiteId;
-        const [kpiRes, flagRes, siteRes, packsRes] = await Promise.all([
-          api.getKPIs(siteId).catch(() => DEFAULT_KPIS),
-          api.getFlagReasons(siteId).catch(() => []),
-          api.getSitePerformance({
-            siteId,
-            page: sitesPage,
-            limit: SITES_PER_PAGE,
-            search: sitesSearch,
-          }).catch(() => ({
-            data: siteId ? DEFAULT_SITES.filter((site) => site.siteId === siteId) : DEFAULT_SITES,
-            meta: DEFAULT_SITES_META,
-          })),
-          api.getBrandPacks().catch(() => []),
+        const [metrics, reasons, performance] = await Promise.all([
+          api.getKPIs(siteId),
+          api.getFlagReasons(siteId),
+          api.getSitePerformance({ siteId, page: sitesPage, limit: SITES_PER_PAGE, search: sitesSearch }),
         ]);
-        const siteRows = siteRes?.data || [];
-        const selectedSiteMetrics = siteId
-          ? siteRows.find((site) => site.siteId === siteId)
-          : undefined;
-
-        if (kpiRes) {
-          // For a single-rooftop view, keep the KPI card aligned with the
-          // selected rooftop row instead of displaying the group aggregate.
-          setKpis(
-            selectedSiteMetrics
-              ? {
-                  ...kpiRes,
-                  totalCasesOpened: selectedSiteMetrics.totalCases,
-                  activeFlaggedCases: selectedSiteMetrics.flaggedCount,
-                }
-              : kpiRes
-          );
-        }
-        if (flagRes && flagRes.length > 0) setFlagReasons(flagRes);
-        if (siteRes) {
-          setSites(siteRes.data || []);
-          setSitesMeta(siteRes.meta || DEFAULT_SITES_META);
-        }
-        if (packsRes && packsRes.length > 0) setBrandPacks(packsRes);
-      } catch (err) {
-        console.error('Failed to load dashboard:', err);
+        if (cancelled) return;
+        setKpis(metrics);
+        setFlagReasons(reasons);
+        setSites(performance.data);
+        setSitesMeta(performance.meta);
+      } catch (error) {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Try refreshing the page.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    loadData();
+    void loadData();
+    return () => { cancelled = true; };
   }, [activeSiteId, sitesPage, sitesSearch]);
+
+  useEffect(() => {
+    if (!isClerk) void api.getBrandPacks().then(setBrandPacks).catch(() => setBrandPacks([]));
+  }, [isClerk]);
 
   useEffect(() => {
     setSitesPage(1);
@@ -452,12 +388,14 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 flex flex-col pb-12">
       <Header
-        title="Group Warranty Operations Dashboard"
-        subtitle="Live cross-dealership KPIs, First-Time Pass Rates, and Flag Analytics"
+        title={isClerk ? "Warranty Clerk Dashboard" : "Group Warranty Operations Dashboard"}
+        subtitle={isClerk ? "Warranty activity for your assigned dealerships" : "Live cross-dealership KPIs, First-Time Pass Rates, and Flag Analytics"}
       />
 
       <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto w-full">
-        {/* OEM Standards & Rules Quick Action Banner */}
+        {loading && <p role="status" className="text-sm text-slate-600">Loading dashboard…</p>}
+        {loadError && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">Unable to load dashboard: {loadError}</p>}
+        {!isClerk && (
         <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center text-[#E11F26] shrink-0">
@@ -510,6 +448,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        )}
+
         {/* KPI Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           <StatCard
@@ -530,7 +470,12 @@ export default function DashboardPage() {
             trendPositive={true}
             icon={<Zap className="w-5 h-5 text-emerald-600" />}
           />
-          <div className="cursor-pointer" onClick={() => openFlaggedModal(null, 'All Rooftops')}>
+          <div className="cursor-pointer" onClick={() => openFlaggedModal(
+            activeSiteId === ALL_ASSIGNED_SITES ? null : activeSiteId,
+            activeSiteId === ALL_ASSIGNED_SITES
+              ? (isClerk ? 'All Assigned Rooftops' : 'All Rooftops')
+              : assignedSites.find(site => site.id === activeSiteId)?.name || activeSiteId,
+          )}>
             <StatCard
               label="Flagged Queue"
               value={kpis?.activeFlaggedCases ?? '...'}
@@ -552,14 +497,14 @@ export default function DashboardPage() {
           />
           <StatCard
             label="Rooftops"
-            value={kpis?.activeRooftopsCount ?? 4}
+            value={kpis?.activeRooftopsCount ?? '—'}
             subtext="Booran VIC Sites"
             accent="gold"
             icon={<Building2 className="w-5 h-5 text-amber-600" />}
           />
           <StatCard
             label="OEM Brands"
-            value={kpis?.activeBrandsCount ?? 8}
+            value={kpis?.activeBrandsCount ?? '—'}
             subtext="BYD, Kia, Hyundai..."
             accent="blue"
             icon={<Car className="w-5 h-5 text-[#E11F26]" />}
