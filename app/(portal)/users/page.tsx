@@ -235,10 +235,20 @@ export default function UsersPage() {
         ? await api.updateUser(editingUser.id, payload)
         : await api.createUser(payload);
 
-      setFormSuccess(`User account for ${savedUser.name} ${editingUser ? 'updated' : 'created'} successfully!`);
       setUsers((prev) => editingUser
         ? prev.map((user) => user.id === savedUser.id ? savedUser : user)
         : [savedUser, ...prev]);
+
+      if (editingUser && allowsMultipleSites) {
+        const missingSites = payload.authorizedSiteIds.filter((id) => !savedUser.authorizedSiteIds?.includes(id));
+        if (missingSites.length > 0) {
+          const names = missingSites.map((id) => sites.find((site) => site.id === id)?.name || id);
+          setFormError(`The server did not save these dealership assignments: ${names.join(', ')}.`);
+          return;
+        }
+      }
+
+      setFormSuccess(`User account for ${savedUser.name} ${editingUser ? 'updated' : 'created'} successfully!`);
 
       // Reset form
       setFormData({

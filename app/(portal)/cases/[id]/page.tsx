@@ -614,6 +614,8 @@ export default function CaseDetailPage() {
   const completedMandatory = caseData.checklistSummary?.completedMandatory ?? 0;
   const totalMandatory = caseData.checklistSummary?.totalMandatory ?? 1;
   const gatePercent = Math.round((completedMandatory / (totalMandatory || 1)) * 100);
+  const savedSiteName = caseData.siteName === 'Booran Dealership' ? undefined : caseData.siteName;
+  const rooftopName = savedSiteName || caseData.siteId || 'Unassigned';
 
   const unresolvedFlags = flagsList.filter((f) => !f.resolvedAt);
   const hasUnresolvedFlags = unresolvedFlags.length > 0;
@@ -622,7 +624,7 @@ export default function CaseDetailPage() {
     <div className="flex-1 flex flex-col pb-12">
       <Header
         title={`Case: ${caseData.roNumber}`}
-        subtitle={`${caseData.brandName} · ${caseData.siteName} · Tech: ${caseData.technicianName}${
+        subtitle={`${caseData.brandName} · Tech: ${caseData.technicianName}${
           caseData.createdAt
             ? ` · ${new Date(caseData.createdAt).toLocaleDateString('en-AU', {
                 day: '2-digit',
@@ -827,6 +829,10 @@ export default function CaseDetailPage() {
               {caseData.year} {caseData.make} {caseData.model}
             </p>
             <div className="space-y-1 font-mono text-xs">
+              <p className="text-slate-700 flex justify-between gap-2">
+                <span className="text-slate-500 shrink-0">Dealership Rooftop</span>
+                <strong className="text-slate-900 text-right break-words min-w-0">{rooftopName}</strong>
+              </p>
               <p className="text-slate-700 flex justify-between">
                 <span className="text-slate-500">VIN:</span>
                 <strong className="text-slate-900 tracking-wider">{caseData.vin}</strong>
