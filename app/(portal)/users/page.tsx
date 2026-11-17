@@ -29,6 +29,7 @@ export default function UsersPage() {
   }
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const activeSites = useMemo(() => sites.filter((site) => site.isActive !== false), [sites]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -76,6 +77,7 @@ export default function UsersPage() {
     authorizedSiteIds: ['site_cranbourne_byd'] as string[],
     workshopFacility: 'all',
   });
+  const allowsMultipleSites = formData.role === 'CLERK' || formData.role === 'TECHNICIAN';
 
   // Delete User Modal State
   const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
@@ -147,7 +149,7 @@ export default function UsersPage() {
 
   const openCreateModal = () => {
     setDealershipSearch('');
-    const firstSiteId = sites[0]?.id || 'site_cranbourne_byd';
+    const firstSiteId = activeSites[0]?.id || '';
     setEditingUser(null);
     setFormData({
       name: '',
@@ -155,7 +157,7 @@ export default function UsersPage() {
       password: 'Booran2026!',
       role: 'ADMIN',
       siteId: firstSiteId,
-      authorizedSiteIds: [firstSiteId],
+      authorizedSiteIds: [firstSiteId].filter(Boolean),
     });
     setFormError(null);
     setFormSuccess(null);
@@ -165,13 +167,15 @@ export default function UsersPage() {
   const openEditModal = (user: UserProfile) => {
     setDealershipSearch('');
     setEditingUser(user);
+    const assigned = user.authorizedSiteIds?.length ? user.authorizedSiteIds : [user.defaultSiteId];
+    const activeAssigned = assigned.filter((id) => activeSites.some((site) => site.id === id));
     setFormData({
       name: user.name,
       email: user.email,
       password: '',
       role: user.role,
-      siteId: user.defaultSiteId,
-      authorizedSiteIds: user.authorizedSiteIds?.length ? user.authorizedSiteIds : [user.defaultSiteId],
+      siteId: activeAssigned.includes(user.defaultSiteId) ? user.defaultSiteId : activeAssigned[0] || (user.role === 'ADMIN' ? user.defaultSiteId : ''),
+      authorizedSiteIds: activeAssigned,
     });
     setFormError(null);
     setFormSuccess(null);
@@ -212,8 +216,8 @@ export default function UsersPage() {
       setFormError('A replacement password must be at least 6 characters.');
       return;
     }
-    if (formData.role === 'CLERK' && formData.authorizedSiteIds.length === 0) {
-      setFormError('Select at least one dealership site for this Warranty Clerk.');
+    if (allowsMultipleSites && formData.authorizedSiteIds.length === 0) {
+      setFormError('Select at least one dealership site for this user.');
       return;
     }
 
@@ -225,7 +229,7 @@ export default function UsersPage() {
         password: formData.password.trim() || undefined,
         role: formData.role,
         siteId: formData.siteId,
-        authorizedSiteIds: formData.role === 'CLERK' ? formData.authorizedSiteIds : [formData.siteId],
+        authorizedSiteIds: allowsMultipleSites ? formData.authorizedSiteIds : [formData.siteId],
       };
       const savedUser = editingUser
         ? await api.updateUser(editingUser.id, payload)
@@ -563,7 +567,7 @@ export default function UsersPage() {
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {editingUser
-                    ? 'Update the role, primary site, or assigned Clerk sites.'
+                    ? 'Update the user’s role and dealership assignments.'
                     : 'Create an Admin, Warranty Clerk, or Workshop Technician account.'}
                 </p>
               </div>
@@ -656,7 +660,7 @@ export default function UsersPage() {
                       role: 'CLERK',
                       authorizedSiteIds: formData.authorizedSiteIds.length
                         ? formData.authorizedSiteIds
-                        : [formData.siteId],
+                        : [formData.siteId].filter(Boolean),
                     })}
                     className={`p-3 rounded-2xl border text-left transition-all ${
                       formData.role === 'CLERK'
@@ -698,9 +702,9 @@ export default function UsersPage() {
               {/* Dealership Site Access */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {formData.role === 'CLERK' ? 'Assigned Dealership Sites' : 'Primary Dealership Rooftop'}
+                  {allowsMultipleSites ? 'Assigned Dealership Sites' : 'Primary Dealership Rooftop'}
                 </label>
-                {formData.role === 'CLERK' ? (
+                {allowsMultipleSites ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[11px] text-slate-500">{formData.authorizedSiteIds.length} selected</p>
@@ -708,7 +712,7 @@ export default function UsersPage() {
                     </div>
                     <input id="dealership-search" type="search" value={dealershipSearch} onChange={(e) => setDealershipSearch(e.target.value)} placeholder="Search dealership sites…" className="input-field text-xs w-full" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {sites.filter((site) => site.name.toLowerCase().includes(dealershipSearch.trim().toLowerCase())).map((site) => {
+                    {activeSites.filter((site) => site.name.toLowerCase().includes(dealershipSearch.trim().toLowerCase())).map((site) => {
                       const selected = formData.authorizedSiteIds.includes(site.id);
                       return (
                         <label
@@ -728,7 +732,7 @@ export default function UsersPage() {
                       );
                     })}
                     </div>
-                    {!sites.some((site) => site.name.toLowerCase().includes(dealershipSearch.trim().toLowerCase())) && <p className="text-xs text-slate-500 py-2">No dealership sites found.</p>}
+                    {!activeSites.some((site) => site.name.toLowerCase().includes(dealershipSearch.trim().toLowerCase())) && <p className="text-xs text-slate-500 py-2">No dealership sites found.</p>}
                   </div>
                 ) : (
                   <select
@@ -747,7 +751,7 @@ export default function UsersPage() {
                     ))}
                   </select>
                 )}
-                {formData.role === 'CLERK' && formData.authorizedSiteIds.length > 0 && (
+                {allowsMultipleSites && formData.authorizedSiteIds.length > 0 && (
                   <div className="mt-2">
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">Default Site</label>
                     <select
