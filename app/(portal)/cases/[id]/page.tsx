@@ -180,12 +180,19 @@ function EvidenceThumbnail({
 
   // Normal image preview with error fallback
   return (
-    <img
-      src={resolvedUrl || item.storageUrl}
-      alt={item.name}
-      onError={() => setHasError(true)}
-      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-    />
+    <button
+      type="button"
+      onClick={() => onExpand(resolvedUrl || item.storageUrl, item)}
+      aria-label={`Expand ${item.name || "evidence photo"}`}
+      className="w-full h-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-red-500"
+    >
+      <img
+        src={resolvedUrl || item.storageUrl}
+        alt={item.name}
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      />
+    </button>
   );
 }
 
@@ -1160,7 +1167,6 @@ export default function CaseDetailPage() {
                       }}
                     />
                     <div
-                      onClick={() => setSelectedMedia(item.storageUrl)}
                       className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none"
                     >
                       <span className="px-3 py-1.5 rounded-lg bg-black/80 text-white text-xs font-semibold backdrop-blur-sm">
