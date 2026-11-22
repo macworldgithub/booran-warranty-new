@@ -99,6 +99,12 @@ export interface BrandPack {
 }
 
 export interface EvidenceItem {
+  aiAnalysis?: {
+    model: string;
+    analyzedAt: string;
+    original: Record<string, string>;
+    reviews: { values: Record<string, string>; editedBy: string; editedAt: string }[];
+  };
   id: string;
   ruleKey: string;
   name: string;

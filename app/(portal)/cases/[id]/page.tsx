@@ -1191,6 +1191,22 @@ export default function CaseDetailPage() {
                       {item.name}
                     </p>
                     <p className="font-mono text-[10px] text-slate-500">Key: {item.ruleKey}</p>
+                    {item.aiAnalysis && (
+                      <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
+                        <summary className="cursor-pointer font-semibold">AI evidence review</summary>
+                        <p className="mt-2">Staff-reviewed findings</p>
+                        {Object.entries(item.aiAnalysis.reviews?.at(-1)?.values || item.aiAnalysis.original).map(([field, value]) => (
+                          <p key={field} className="mt-1 whitespace-pre-wrap"><strong>{field}</strong> {String(value || 'Unknown')}</p>
+                        ))}
+                        <p className="mt-2 font-semibold">Original AI result</p>
+                        {Object.entries(item.aiAnalysis.original).map(([field, value]) => (
+                          <p key={field} className="mt-1 whitespace-pre-wrap"><strong>{field}</strong> {String(value || 'Unknown')}</p>
+                        ))}
+                        {item.aiAnalysis.reviews?.map((review: any, index: number) => (
+                          <p key={index} className="mt-2">Reviewed by {review.editedBy} on {review.editedAt}</p>
+                        ))}
+                      </details>
+                    )}
                     {item.ocrExtractedText && (
                       <div className="p-2 rounded bg-slate-50 border border-slate-200 text-[10px]">
                         <span className="text-slate-800 font-semibold block">OCR Verified:</span>
