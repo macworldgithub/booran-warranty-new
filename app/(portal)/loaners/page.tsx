@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -24,7 +24,8 @@ import {
 } from 'lucide-react';
 import { Header } from '@/components/header';
 import { api } from '@/lib/api';
-import { LoanAgreement, LoanAgreementKpis } from '@/lib/types';
+import { LoanAgreement, LoanAgreementKpis, LoanReservation } from '@/lib/types';
+import { LoanReservationsPanel } from '@/components/loan-reservations-panel';
 import { ALL_ASSIGNED_SITES, useClerkSite } from '@/components/clerk-site-context';
 
 type RooftopOption = { label: string; siteId: string; fullName: string };
@@ -258,6 +259,8 @@ export default function LoanersPage() {
 
   // Create: Issue Modal
   const [isIssueOpen, setIsIssueOpen] = useState(false);
+  const [issueReservation, setIssueReservation] = useState<LoanReservation | null>(null);
+  const [issueError, setIssueError] = useState('');
   const [issuePurpose, setIssuePurpose] = useState<'SERVICE_LOANER' | 'TEST_DRIVE'>('SERVICE_LOANER');
   const [issueSiteId, setIssueSiteId] = useState('site_cranbourne_byd');
   const [issueCustomerName, setIssueCustomerName] = useState('');
@@ -272,6 +275,7 @@ export default function LoanersPage() {
   const [issueDeposit, setIssueDeposit] = useState('500');
   const [issueDepositMethod, setIssueDepositMethod] = useState('CARD_PREAUTH');
   const [submittingIssue, setSubmittingIssue] = useState(false);
+  const issueInFlight = useRef(false);
 
   const fetchData = useCallback(async () => {
     if (!sessionReady || isTechnician) return;
@@ -582,18 +586,26 @@ export default function LoanersPage() {
 
   const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (issueInFlight.current) return;
+    setIssueError('');
     if (!issueCustomerName.trim() || !issueMobile.trim() || !issueRego.trim()) {
       alert('Please fill in customer name, mobile, and vehicle registration.');
       return;
     }
+    if (issueReservation && issueRego.trim().toUpperCase() === 'TBA') {
+      setIssueError('Enter the actual vehicle registration before handover.');
+      return;
+    }
 
-    const effectiveIssueSite = isTechnician && technicianSiteId ? technicianSiteId : issueSiteId;
+    const effectiveIssueSite = issueReservation?.siteId || (isTechnician && technicianSiteId ? technicianSiteId : issueSiteId);
     const siteObj = rooftops.find((r) => r.siteId === effectiveIssueSite) || rooftops.find((r) => r.siteId !== 'all') || FALLBACK_ROOFTOPS[1];
     const hours = parseInt(issueDueHours, 10) || 24;
-    const dueTime = new Date(Date.now() + hours * 3600000).toISOString();
+    const dueTime = issueReservation?.endAt || new Date(Date.now() + hours * 3600000).toISOString();
 
     const payload = {
-      siteId: siteObj.siteId,
+      reservationId: issueReservation?.id,
+      loanStartDateTime: issueReservation?.startAt,
+      siteId: issueReservation?.siteId || siteObj.siteId,
       siteName: siteObj.fullName || `Booran ${siteObj.label}`,
       purpose: issuePurpose,
       customer: {
@@ -630,11 +642,13 @@ export default function LoanersPage() {
     };
 
     try {
+      issueInFlight.current = true;
       setSubmittingIssue(true);
       let created: LoanAgreement;
       try {
         created = await api.issueLoanAgreement(payload);
       } catch (apiErr) {
+        if (issueReservation) throw apiErr;
         console.warn('API issue failed, adding locally:', apiErr);
         created = {
           id: `lagr_${Date.now()}`,
@@ -647,6 +661,7 @@ export default function LoanersPage() {
       }
       setAgreements((prev) => [created, ...prev]);
       setIsIssueOpen(false);
+      setIssueReservation(null);
       setIssueCustomerName('');
       setIssueMobile('');
       setIssueEmail('');
@@ -656,18 +671,33 @@ export default function LoanersPage() {
       setIssueModel('');
       setIssueOdo('');
     } catch (err: any) {
-      alert('Issue failed: ' + (err?.message || 'Server error'));
+      setIssueError('Issue failed: ' + (err?.message || 'Server error'));
     } finally {
+      issueInFlight.current = false;
       setSubmittingIssue(false);
     }
   };
 
   const openIssueModal = (purpose: 'SERVICE_LOANER' | 'TEST_DRIVE') => {
+    setIssueReservation(null);
+    setIssueError('');
     setIssuePurpose(purpose);
     setIssueDueHours(purpose === 'TEST_DRIVE' ? '1' : '24');
     if (isTechnician && technicianSiteId) {
       setIssueSiteId(technicianSiteId);
     }
+    setIsIssueOpen(true);
+  };
+
+  const issueReservedVehicle = (reservation: LoanReservation) => {
+    setIssueReservation(reservation);
+    setIssueError('');
+    setIssuePurpose('SERVICE_LOANER');
+    setIssueSiteId(reservation.siteId);
+    setIssueCustomerName(reservation.customerName);
+    setIssueMobile(reservation.customerMobile);
+    setIssueRego(reservation.rego && reservation.rego.toUpperCase() !== 'TBA' ? reservation.rego : '');
+    setIssueEmail(''); setIssueLicence(''); setIssueMake(''); setIssueModel(''); setIssueOdo('');
     setIsIssueOpen(true);
   };
 
@@ -779,6 +809,14 @@ export default function LoanersPage() {
             </span>
           </div>
         </div>
+
+        {sessionReady && !isTechnician && <LoanReservationsPanel
+          key={selectedSiteId}
+          siteId={selectedSiteId}
+          sites={visibleRooftops}
+          agreements={agreements}
+          onIssue={issueReservedVehicle}
+        />}
 
         {/* KPI Stat Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -2372,6 +2410,12 @@ export default function LoanersPage() {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4">
+              {issueError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{issueError}</p>}
+              {issueReservation && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm" data-testid="reservation-handover">
+                <p className="font-bold">Handover: {issueReservation.loanerName}</p>
+                <p className="mt-1 text-xs">{new Date(issueReservation.startAt).toLocaleString('en-AU')} to {new Date(issueReservation.endAt).toLocaleString('en-AU')}</p>
+                <p className="mt-1 text-xs text-slate-600">The reserved rooftop and times are fixed. Enter the actual registration before issuing.</p>
+              </div>}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Agreement Purpose *</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -2382,6 +2426,7 @@ export default function LoanersPage() {
                     <button
                       key={option.value}
                       type="button"
+                      disabled={!!issueReservation || submittingIssue}
                       onClick={() => {
                         const purpose = option.value as typeof issuePurpose;
                         setIssuePurpose(purpose);
@@ -2417,6 +2462,8 @@ export default function LoanersPage() {
                 ) : (
                   <select
                     value={issueSiteId}
+                    aria-label="Issue dealership rooftop"
+                    disabled={!!issueReservation || submittingIssue}
                     onChange={(e) => setIssueSiteId(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden bg-white"
                   >
@@ -2440,6 +2487,7 @@ export default function LoanersPage() {
                       required
                       placeholder="e.g. Sarah Jenkins"
                       value={issueCustomerName}
+                      aria-label="Issue customer name"
                       onChange={(e) => setIssueCustomerName(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
                     />
@@ -2451,6 +2499,7 @@ export default function LoanersPage() {
                       required
                       placeholder="e.g. 0412 345 678"
                       value={issueMobile}
+                      aria-label="Issue customer mobile"
                       onChange={(e) => setIssueMobile(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
                     />
@@ -2495,6 +2544,7 @@ export default function LoanersPage() {
                       required
                       placeholder="e.g. BMG405"
                       value={issueRego}
+                      aria-label="Loan vehicle registration"
                       onChange={(e) => setIssueRego(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold uppercase text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
                     />
@@ -2536,8 +2586,10 @@ export default function LoanersPage() {
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       {issuePurpose === 'TEST_DRIVE' ? 'Test Drive Duration' : 'Loan Duration'}
                     </label>
-                    <select
+                    {issueReservation ? <p className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">Due back: {new Date(issueReservation.endAt).toLocaleString('en-AU')}</p> : <select
                       value={issueDueHours}
+                      aria-label="Loan duration"
+                      disabled={!!issueReservation || submittingIssue}
                       onChange={(e) => setIssueDueHours(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden bg-white"
                     >
@@ -2549,7 +2601,7 @@ export default function LoanersPage() {
                       <option value="48">48 Hours (2 Days)</option>
                       <option value="72">72 Hours (3 Days)</option>
                       <option value="168">7 Days (Full Week)</option>
-                    </select>
+                    </select>}
                   </div>
                 </div>
               </div>

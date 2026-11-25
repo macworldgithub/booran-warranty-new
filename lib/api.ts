@@ -18,6 +18,8 @@ import {
   PaginationMeta,
   LoanAgreement,
   LoanAgreementKpis,
+  LoanReservation,
+  ReserveLoanerInput,
   Hoist,
   HoistInspection,
   HoistSummary,
@@ -974,6 +976,29 @@ export const api = {
   },
 
   // Loan Vehicle Operations
+  async getLoanReservations(siteId?: string): Promise<LoanReservation[]> {
+    const query = siteId && siteId !== 'all' ? `?siteId=${encodeURIComponent(siteId)}` : '';
+    const res = await fetch(`${BASE_URL}/loan-agreements/reservations${query}`, {
+      headers: getAuthHeader(),
+      cache: 'no-store',
+    });
+    return handleResponse(res);
+  },
+
+  async reserveLoaner(data: ReserveLoanerInput): Promise<LoanReservation> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/reservations`, {
+      method: 'POST', headers: getAuthHeader(), body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async cancelLoanReservation(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/reservations/${encodeURIComponent(id)}/cancel`, {
+      method: 'POST', headers: getAuthHeader(), body: JSON.stringify({}),
+    });
+    return handleResponse(res);
+  },
+
   async getLoanAgreementKpis(siteId?: string): Promise<LoanAgreementKpis> {
     const query = siteId && siteId !== "all" ? `?siteId=${encodeURIComponent(siteId)}` : "";
     const res = await fetch(`${BASE_URL}/loan-agreements/kpis${query}`, {
