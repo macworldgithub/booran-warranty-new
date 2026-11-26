@@ -1034,6 +1034,20 @@ export const api = {
     return handleResponse(res);
   },
 
+  async signLoanAgreement(id: string, data: {
+    borrowerSignatureDataUrl: string;
+    readAndAgreed: boolean;
+    electronicConsent: boolean;
+    privacyNoticeAcknowledged: boolean;
+    staffName: string;
+    deviceUserAgent: string;
+  }): Promise<LoanAgreement> {
+    const res = await fetch(`${BASE_URL}/loan-agreements/${encodeURIComponent(id)}/sign`, {
+      method: 'POST', headers: getAuthHeader(), body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   async returnLoanAgreement(id: string, data: any): Promise<LoanAgreement> {
     const res = await fetch(`${BASE_URL}/loan-agreements/${id}/return`, {
       method: "POST",

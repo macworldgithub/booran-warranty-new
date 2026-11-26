@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -24,8 +24,9 @@ import {
 } from 'lucide-react';
 import { Header } from '@/components/header';
 import { api } from '@/lib/api';
-import { LoanAgreement, LoanAgreementKpis, LoanReservation } from '@/lib/types';
+import { LoanAgreement, LoanAgreementKpis, LoanReservation, UserProfile } from '@/lib/types';
 import { LoanReservationsPanel } from '@/components/loan-reservations-panel';
+import { IssueLoanWizard } from '@/components/issue-loan-wizard';
 import { ALL_ASSIGNED_SITES, useClerkSite } from '@/components/clerk-site-context';
 
 type RooftopOption = { label: string; siteId: string; fullName: string };
@@ -41,7 +42,8 @@ const FALLBACK_ROOFTOPS: RooftopOption[] = [
 function getDynamicLoanCategory(
   status?: string,
   dueBackDateTime?: string
-): 'RETURNED' | 'OVERDUE' | 'DUE_SOON' | 'ACTIVE' {
+): 'DRAFT' | 'RETURNED' | 'OVERDUE' | 'DUE_SOON' | 'ACTIVE' {
+  if (status === 'DRAFT') return 'DRAFT';
   if (status === 'RETURNED' || status === 'CANCELLED') {
     return 'RETURNED';
   }
@@ -76,6 +78,7 @@ function computeKpis(agreementList: LoanAgreement[], siteId: string): LoanAgreem
   let overdue = 0;
 
   for (const a of filtered) {
+    if (a.status === 'DRAFT') continue;
     if (a.status === 'RETURNED') {
       available++;
       continue;
@@ -160,28 +163,26 @@ export default function LoanersPage() {
           return;
         }
 
-        const rawAssigned = Array.isArray(me?.authorizedSiteIds) && me.authorizedSiteIds.length > 0
-          ? me.authorizedSiteIds
-          : Array.isArray(stored.authorizedSiteIds) && stored.authorizedSiteIds.length > 0
-            ? stored.authorizedSiteIds
-            : (me?.defaultSiteId || stored.defaultSiteId)
-              ? [me?.defaultSiteId || stored.defaultSiteId]
-              : [];
+        const profile = me || stored;
+        const rawAssigned = Array.isArray(profile.authorizedSiteIds) && profile.authorizedSiteIds.length > 0
+          ? profile.authorizedSiteIds
+          : profile.defaultSiteId ? [profile.defaultSiteId] : [];
 
-        const assignedSites: string[] = rawAssigned.length > 0
+        const assignedSites: string[] = role === 'CLERK' ? rawAssigned : rawAssigned.length > 0
           ? rawAssigned
           : (siteList || []).map((s: any) => s.id);
 
-        const defaultSiteId = me?.defaultSiteId || stored.defaultSiteId || assignedSites[0] || 'site_cranbourne_byd';
+        const defaultSiteId = profile.defaultSiteId || assignedSites[0] || '';
         setUserRole(role || me?.role || stored.role || '');
+        setIssuingStaff(me || stored);
         setAuthorizedSiteIds(assignedSites);
         setTechnicianSiteId(defaultSiteId);
 
         const scopedSites = (siteList && siteList.length > 0)
-          ? siteList.filter((site: any) => assignedSites.length === 0 || assignedSites.includes(site.id))
-          : FALLBACK_ROOFTOPS.filter((r) => r.siteId !== 'all');
+          ? siteList.filter((site: any) => site.isActive !== false && (role !== 'CLERK' && assignedSites.length === 0 || assignedSites.includes(site.id)))
+          : FALLBACK_ROOFTOPS.filter((r) => r.siteId !== 'all' && (role !== 'CLERK' || assignedSites.includes(r.siteId)));
 
-        const finalScopedSites = scopedSites.length > 0
+        const finalScopedSites = role === 'CLERK' ? scopedSites : scopedSites.length > 0
           ? scopedSites
           : (siteList && siteList.length > 0 ? siteList : FALLBACK_ROOFTOPS.filter((r) => r.siteId !== 'all'));
 
@@ -260,23 +261,10 @@ export default function LoanersPage() {
   // Create: Issue Modal
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [issueReservation, setIssueReservation] = useState<LoanReservation | null>(null);
-  const [issueError, setIssueError] = useState('');
+  const [issueDraft, setIssueDraft] = useState<LoanAgreement | null>(null);
+  const [issuingStaff, setIssuingStaff] = useState<UserProfile | null>(null);
   const [issuePurpose, setIssuePurpose] = useState<'SERVICE_LOANER' | 'TEST_DRIVE'>('SERVICE_LOANER');
   const [issueSiteId, setIssueSiteId] = useState('site_cranbourne_byd');
-  const [issueCustomerName, setIssueCustomerName] = useState('');
-  const [issueMobile, setIssueMobile] = useState('');
-  const [issueEmail, setIssueEmail] = useState('');
-  const [issueLicence, setIssueLicence] = useState('');
-  const [issueRego, setIssueRego] = useState('');
-  const [issueMake, setIssueMake] = useState('');
-  const [issueModel, setIssueModel] = useState('');
-  const [issueOdo, setIssueOdo] = useState('');
-  const [issueDueHours, setIssueDueHours] = useState('24');
-  const [issueDeposit, setIssueDeposit] = useState('500');
-  const [issueDepositMethod, setIssueDepositMethod] = useState('CARD_PREAUTH');
-  const [submittingIssue, setSubmittingIssue] = useState(false);
-  const issueInFlight = useRef(false);
-
   const fetchData = useCallback(async () => {
     if (!sessionReady || isTechnician) return;
     try {
@@ -365,6 +353,8 @@ export default function LoanersPage() {
   const getStatusBadge = (status?: string, dueBackDateTime?: string) => {
     const category = getDynamicLoanCategory(status, dueBackDateTime);
     switch (category) {
+      case 'DRAFT':
+        return <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">Awaiting signature</span>;
       case 'OVERDUE': {
         const diffMinutes = dueBackDateTime ? Math.round((Date.now() - new Date(dueBackDateTime).getTime()) / 60000) : 0;
         const label = diffMinutes >= 60
@@ -584,120 +574,27 @@ export default function LoanersPage() {
     }
   };
 
-  const handleIssueSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (issueInFlight.current) return;
-    setIssueError('');
-    if (!issueCustomerName.trim() || !issueMobile.trim() || !issueRego.trim()) {
-      alert('Please fill in customer name, mobile, and vehicle registration.');
-      return;
-    }
-    if (issueReservation && issueRego.trim().toUpperCase() === 'TBA') {
-      setIssueError('Enter the actual vehicle registration before handover.');
-      return;
-    }
-
-    const effectiveIssueSite = issueReservation?.siteId || (isTechnician && technicianSiteId ? technicianSiteId : issueSiteId);
-    const siteObj = rooftops.find((r) => r.siteId === effectiveIssueSite) || rooftops.find((r) => r.siteId !== 'all') || FALLBACK_ROOFTOPS[1];
-    const hours = parseInt(issueDueHours, 10) || 24;
-    const dueTime = issueReservation?.endAt || new Date(Date.now() + hours * 3600000).toISOString();
-
-    const payload = {
-      reservationId: issueReservation?.id,
-      loanStartDateTime: issueReservation?.startAt,
-      siteId: issueReservation?.siteId || siteObj.siteId,
-      siteName: siteObj.fullName || `Booran ${siteObj.label}`,
-      purpose: issuePurpose,
-      customer: {
-        name: issueCustomerName.trim(),
-        dob: '1990-01-01',
-        mobile: issueMobile.trim(),
-        email: issueEmail.trim() || 'customer@gmail.com',
-        residentialAddress: 'Melbourne VIC',
-        licenceNumber: issueLicence.trim() || 'LIC998822',
-        licenceState: 'VIC',
-        licenceExpiry: '2028-12-31',
-        licenceSighted: true,
-      },
-      vehicle: {
-        vin: 'LGX' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        rego: issueRego.trim().toUpperCase(),
-        make: issueMake.trim() || 'Booran Fleet',
-        model: issueModel.trim() || (issuePurpose === 'TEST_DRIVE' ? 'Demo Vehicle' : 'Service Loaner'),
-        year: 2024,
-        colour: 'White',
-      },
-      dueBackDateTime: dueTime,
-      dailyKmCap: 50,
-      excessKmRate: 0.5,
-      basicInsuranceExcess: 2500,
-      securityDepositHeld: parseFloat(issueDeposit) || 500,
-      depositPaymentMethod: issueDepositMethod,
-      outbound: {
-        odometerOut: parseInt(issueOdo, 10) || 0,
-        fuelLevelOutPercent: 100,
-        damageNotes: 'Clean pre-delivery check completed.',
-        photos: {},
-      },
-    };
-
-    try {
-      issueInFlight.current = true;
-      setSubmittingIssue(true);
-      let created: LoanAgreement;
-      try {
-        created = await api.issueLoanAgreement(payload);
-      } catch (apiErr) {
-        if (issueReservation) throw apiErr;
-        console.warn('API issue failed, adding locally:', apiErr);
-        created = {
-          id: `lagr_${Date.now()}`,
-          agreementNumber: `BMG-${siteObj.label.toUpperCase()}-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          ...payload,
-        } as any;
-      }
-      setAgreements((prev) => [created, ...prev]);
-      setIsIssueOpen(false);
-      setIssueReservation(null);
-      setIssueCustomerName('');
-      setIssueMobile('');
-      setIssueEmail('');
-      setIssueLicence('');
-      setIssueRego('');
-      setIssueMake('');
-      setIssueModel('');
-      setIssueOdo('');
-    } catch (err: any) {
-      setIssueError('Issue failed: ' + (err?.message || 'Server error'));
-    } finally {
-      issueInFlight.current = false;
-      setSubmittingIssue(false);
-    }
-  };
-
   const openIssueModal = (purpose: 'SERVICE_LOANER' | 'TEST_DRIVE') => {
     setIssueReservation(null);
-    setIssueError('');
+    setIssueDraft(null);
     setIssuePurpose(purpose);
-    setIssueDueHours(purpose === 'TEST_DRIVE' ? '1' : '24');
-    if (isTechnician && technicianSiteId) {
-      setIssueSiteId(technicianSiteId);
-    }
+    setIssueSiteId(selectedSiteId !== 'all' ? selectedSiteId : technicianSiteId || authorizedSiteIds[0] || '');
     setIsIssueOpen(true);
   };
 
   const issueReservedVehicle = (reservation: LoanReservation) => {
     setIssueReservation(reservation);
-    setIssueError('');
+    setIssueDraft(null);
     setIssuePurpose('SERVICE_LOANER');
     setIssueSiteId(reservation.siteId);
-    setIssueCustomerName(reservation.customerName);
-    setIssueMobile(reservation.customerMobile);
-    setIssueRego(reservation.rego && reservation.rego.toUpperCase() !== 'TBA' ? reservation.rego : '');
-    setIssueEmail(''); setIssueLicence(''); setIssueMake(''); setIssueModel(''); setIssueOdo('');
+    setIsIssueOpen(true);
+  };
+
+  const resumeLoanDraft = (agreement: LoanAgreement) => {
+    setIssueReservation(null);
+    setIssueDraft(agreement);
+    setIssuePurpose(agreement.purpose === 'TEST_DRIVE' ? 'TEST_DRIVE' : 'SERVICE_LOANER');
+    setIssueSiteId(agreement.siteId);
     setIsIssueOpen(true);
   };
 
@@ -809,6 +706,12 @@ export default function LoanersPage() {
             </span>
           </div>
         </div>
+
+        {sessionReady && isClerk && !authorizedSiteIds.length && <p role="alert" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">No dealership rooftop is assigned to this Warranty Clerk. Ask your administrator to update the account assignment.</p>}
+        {filteredAgreements.some(agreement => agreement.status === 'DRAFT') && <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-bold">Loan agreements awaiting customer signature</p>
+          <div className="mt-2 flex flex-wrap gap-2">{filteredAgreements.filter(agreement => agreement.status === 'DRAFT').map(agreement => <button key={agreement.id} type="button" onClick={() => resumeLoanDraft(agreement)} className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-semibold">Complete handover: {agreement.vehicle.rego}</button>)}</div>
+        </div>}
 
         {sessionReady && !isTechnician && <LoanReservationsPanel
           key={selectedSiteId}
@@ -1070,7 +973,7 @@ export default function LoanersPage() {
                 ) : (
                   filteredAgreements.map((ag) => {
                     const category = getDynamicLoanCategory(ag.status, ag.dueBackDateTime);
-                    const isLoanActive = category !== 'RETURNED';
+                    const isLoanActive = category !== 'RETURNED' && category !== 'DRAFT';
                     const odoOut = ag.outbound?.odometerOut || 0;
                     const odoIn = ag.inbound?.odometerIn;
                     return (
@@ -2382,304 +2285,28 @@ export default function LoanersPage() {
         </div>
       )}
 
-      {/* Create: Issue Loan Vehicle Modal */}
-      {isIssueOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <form
-            onSubmit={handleIssueSubmit}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
-          >
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-lg">
-                  {issuePurpose === 'TEST_DRIVE' ? 'Start Test Drive' : 'Issue Service Loaner'}
-                </h3>
-                <p className="text-xs text-slate-300">
-                  New electronic {issuePurpose === 'TEST_DRIVE' ? 'test drive' : 'service loan'} agreement & SOW indemnity
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsIssueOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      {isIssueOpen && issuingStaff && <IssueLoanWizard
+        sites={visibleRooftops.filter(site => site.siteId !== 'all' && (!isClerk || authorizedSiteIds.includes(site.siteId)))}
+        initialSiteId={issueSiteId}
+        purpose={issuePurpose}
+        staff={issuingStaff}
+        agreements={agreements}
+        reservation={issueReservation}
+        draft={issueDraft}
+        onClose={() => { setIsIssueOpen(false); void fetchData(); }}
+        onDraftCreated={created => {
+          setIssueDraft(created);
+          setAgreements(current => [created, ...current.filter(agreement => agreement.id !== created.id)]);
+        }}
+        onComplete={signed => {
+          setAgreements(current => [signed, ...current.filter(agreement => agreement.id !== signed.id)]);
+          setIsIssueOpen(false);
+          setIssueDraft(null);
+          setIssueReservation(null);
+          void fetchData();
+        }}
+      />}
 
-            <div className="p-6 overflow-y-auto space-y-4">
-              {issueError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{issueError}</p>}
-              {issueReservation && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm" data-testid="reservation-handover">
-                <p className="font-bold">Handover: {issueReservation.loanerName}</p>
-                <p className="mt-1 text-xs">{new Date(issueReservation.startAt).toLocaleString('en-AU')} to {new Date(issueReservation.endAt).toLocaleString('en-AU')}</p>
-                <p className="mt-1 text-xs text-slate-600">The reserved rooftop and times are fixed. Enter the actual registration before issuing.</p>
-              </div>}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Agreement Purpose *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'SERVICE_LOANER', label: 'Service Loaner' },
-                    { value: 'TEST_DRIVE', label: 'Test Drive' },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={!!issueReservation || submittingIssue}
-                      onClick={() => {
-                        const purpose = option.value as typeof issuePurpose;
-                        setIssuePurpose(purpose);
-                        setIssueDueHours(purpose === 'TEST_DRIVE' ? '1' : '24');
-                      }}
-                      className={`px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
-                        issuePurpose === option.value
-                          ? 'bg-[#D71920] text-white border-[#D71920]'
-                          : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rooftop Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Dealership Rooftop *</label>
-                {isTechnician ? (
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="font-bold text-slate-800">
-                        {rooftops.find((r) => r.siteId === (technicianSiteId || issueSiteId))?.fullName || activeRooftopLabel}
-                      </span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded bg-slate-200 text-[11px] font-bold text-slate-600">
-                      Assigned Workshop
-                    </span>
-                  </div>
-                ) : (
-                  <select
-                    value={issueSiteId}
-                    aria-label="Issue dealership rooftop"
-                    disabled={!!issueReservation || submittingIssue}
-                    onChange={(e) => setIssueSiteId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] focus:border-transparent outline-hidden bg-white"
-                  >
-                    {visibleRooftops.filter((r) => r.siteId !== 'all').map((r) => (
-                      <option key={r.siteId} value={r.siteId}>
-                        {r.fullName || `Booran ${r.label}`}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* Customer Information */}
-              <div className="space-y-3 pt-2 border-t border-slate-200">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Customer Information</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Sarah Jenkins"
-                      value={issueCustomerName}
-                      aria-label="Issue customer name"
-                      onChange={(e) => setIssueCustomerName(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="e.g. 0412 345 678"
-                      value={issueMobile}
-                      aria-label="Issue customer mobile"
-                      onChange={(e) => setIssueMobile(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      placeholder="customer@gmail.com"
-                      value={issueEmail}
-                      onChange={(e) => setIssueEmail(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Driver Licence Number *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 10982344"
-                      value={issueLicence}
-                      onChange={(e) => setIssueLicence(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Loan Vehicle Details */}
-              <div className="space-y-3 pt-2 border-t border-slate-200">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {issuePurpose === 'TEST_DRIVE' ? 'Test Drive Vehicle Details' : 'Loan Vehicle Details'}
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Registration *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. BMG405"
-                      value={issueRego}
-                      aria-label="Loan vehicle registration"
-                      onChange={(e) => setIssueRego(e.target.value.toUpperCase())}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold uppercase text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Make</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. BYD"
-                      value={issueMake}
-                      onChange={(e) => setIssueMake(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Model</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Atto 3"
-                      value={issueModel}
-                      onChange={(e) => setIssueModel(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Outbound Odometer (km)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 12500"
-                      value={issueOdo}
-                      onChange={(e) => setIssueOdo(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      {issuePurpose === 'TEST_DRIVE' ? 'Test Drive Duration' : 'Loan Duration'}
-                    </label>
-                    {issueReservation ? <p className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">Due back: {new Date(issueReservation.endAt).toLocaleString('en-AU')}</p> : <select
-                      value={issueDueHours}
-                      aria-label="Loan duration"
-                      disabled={!!issueReservation || submittingIssue}
-                      onChange={(e) => setIssueDueHours(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden bg-white"
-                    >
-                      {issuePurpose === 'TEST_DRIVE' && <option value="1">1 Hour</option>}
-                      {issuePurpose === 'TEST_DRIVE' && <option value="2">2 Hours</option>}
-                      <option value="4">4 Hours (Same Day Return)</option>
-                      <option value="8">8 Hours (End of Day Return)</option>
-                      <option value="24">24 Hours (Next Day Return)</option>
-                      <option value="48">48 Hours (2 Days)</option>
-                      <option value="72">72 Hours (3 Days)</option>
-                      <option value="168">7 Days (Full Week)</option>
-                    </select>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Security Deposit & Pre-Authorisation */}
-              <div className="space-y-3 pt-2 border-t border-slate-200">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Security Deposit / Bond</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Deposit Amount ($) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      placeholder="500.00"
-                      value={issueDeposit}
-                      onChange={(e) => setIssueDeposit(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden"
-                    />
-                    <span className="text-[10px] text-slate-500 mt-1 block">Subtracted from inbound charges on return</span>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Payment / Pre-Auth Method</label>
-                    <select
-                      value={issueDepositMethod}
-                      onChange={(e) => setIssueDepositMethod(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#D71920] outline-hidden bg-white"
-                    >
-                      <option value="CARD_PREAUTH">Card Pre-Authorisation ($500 hold)</option>
-                      <option value="CREDIT_CARD">Credit / Debit Card Payment</option>
-                      <option value="CASH">Cash Bond</option>
-                      <option value="EFT">Direct EFT / Bank Transfer</option>
-                      <option value="WAIVED">Waived (Corporate / Internal)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* SOW Terms Summary */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1 text-slate-600">
-                <div className="flex justify-between">
-                  <span>Daily Km Allowance:</span>
-                  <span className="font-bold text-slate-900">50 km / day</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Excess Mileage Rate:</span>
-                  <span className="font-bold text-amber-700">$0.50 AUD / km</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Insurance Basic Excess:</span>
-                  <span className="font-bold text-slate-900">$2,500.00 AUD</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setIsIssueOpen(false)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submittingIssue}
-                className="px-5 py-2 bg-[#D71920] hover:bg-[#B91218] text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-2"
-              >
-                {submittingIssue
-                  ? 'Creating...'
-                  : issuePurpose === 'TEST_DRIVE'
-                    ? 'Start & Activate Test Drive'
-                    : 'Issue & Activate Loan'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
