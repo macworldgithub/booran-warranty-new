@@ -182,7 +182,7 @@ function EvidenceThumbnail({
     return (
       <a href={resolvedUrl} target="_blank" rel="noopener noreferrer"
         className="w-full h-full flex items-center justify-center text-sm font-semibold text-slate-700 bg-slate-100">
-        Open PDF report
+        Open document
       </a>
     );
   }
